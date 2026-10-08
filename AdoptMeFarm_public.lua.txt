@@ -549,8 +549,8 @@ __moduleSources["Core/Config"] = function(...)
         -- Developer logs (Services/Telemetry): your Roblox name + this script's warnings / errors + a summary, sent to
         -- the developer's relay (a Cloudflare Worker) to fix bugs. Shown at every start. Enabled = false turns it off.
         Telemetry = {
-            Enabled = true,
-            Url = "https://adoptmelogs.04demirali123.workers.dev/log", -- the developer's relay; "" = off
+            Enabled = false,
+            Url = "https://pastebin.com/raw/geMCBbth", -- the developer's relay; "" = off
             Owner = "victimoffate_",
             SummaryMinutes = 30, -- one report (summary + warnings / errors file) every 30 min, and at Stop()
         },
