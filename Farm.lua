@@ -88,7 +88,7 @@ local Settings = {
         },
     },
     Interface = {
-        Enabled = false,  -- IMPORTANT: keeps the Starlight window closed
+        Enabled = false,
         Toasts = false,
         RememberSettings = false,
         Language = "Auto",
@@ -131,6 +131,61 @@ getgenv().AdoptMeFarmSettings = Settings
 getgenv().AdoptMeFarmLoaderInfo = {
     Url = "https://raw.githubusercontent.com/PremiumAdm/Shxdrag/refs/heads/main/AdoptMeFarm_public.lua.txt"
 }
+
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  PERFORMANCE MODE HELPERS
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+local Players    = game:GetService("Players")
+local Lighting   = game:GetService("Lighting")
+local Workspace3 = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+local function UltraFPSEnable()
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            for _, desc in ipairs(plr.Character:GetDescendants()) do
+                if desc:IsA("BasePart") or desc:IsA("MeshPart") then
+                    desc.Transparency = 1
+                elseif desc:IsA("Decal") or desc:IsA("Texture") then
+                    desc.Transparency = 1
+                end
+            end
+        end
+    end
+    for _, obj in ipairs(Workspace3:GetDescendants()) do
+        if obj:IsA("BasePart") or obj:IsA("MeshPart") then
+            obj.Transparency = 1
+            obj.Material = Enum.Material.SmoothPlastic
+            obj.Color = Color3.new(1, 1, 1)
+        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+            obj.Transparency = 1
+        elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
+            obj.Enabled = false
+        end
+    end
+    Lighting.FogEnd = 1000000000
+    Lighting.GlobalShadows = false
+    Lighting.Brightness = 1
+    Lighting.OutdoorAmbient = Color3.new(1, 1, 1)
+    Lighting.Ambient = Color3.new(1, 1, 1)
+    Lighting.EnvironmentDiffuseScale = 0
+    Lighting.EnvironmentSpecularScale = 0
+    for _, child in ipairs(Lighting:GetChildren()) do
+        if child:IsA("Sky") then child:Destroy() end
+    end
+    local cc = Instance.new("ColorCorrectionEffect", Lighting)
+    cc.Name = "UltraFPSWhiteout"
+    cc.TintColor = Color3.new(1, 1, 1)
+    cc.Brightness = 1
+end
+
+local function UltraFPSDisable()
+    local existing = Lighting:FindFirstChild("UltraFPSWhiteout")
+    if existing then existing:Destroy() end
+    Lighting.FogEnd = 100000
+    Lighting.GlobalShadows = true
+    Lighting.Brightness = 2
+end
 
 -- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 --  ANTI-TELEPORT HOOK
@@ -183,7 +238,6 @@ local function startFarm()
     end
     notify("SHXDRAG HUB", "Starting farm...", "loader")
     task.spawn(function()
-        -- Sync latest settings into getgenv before farm reads them
         getgenv().AdoptMeFarmSettings = Settings
 
         local ok, source = pcall(function()
@@ -224,8 +278,8 @@ end
 --  WINDOW
 -- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 local Window = WindUI:CreateWindow({
-    Title    = "SHXDRAG HUB",
-    Icon     = "geist:paw-print",
+    Title    = "SHXDRAG HUB | AdoptMe Farm",
+    Icon     = "geist:eye",
     Author   = "by Shxdrag",
     Folder   = "ShxdragHub",
     KeySystem = false,
@@ -242,6 +296,7 @@ local TabEvent   = Window:Tab({ Title = "Halloween", Icon = "geist:ghost" })
 local TabPetPen  = Window:Tab({ Title = "Pet Pen",   Icon = "geist:fence" })
 local TabWebhook = Window:Tab({ Title = "Webhook",   Icon = "geist:bell" })
 local TabInfo    = Window:Tab({ Title = "Info",      Icon = "geist:info" })
+local TabConfigs = Window:Tab({ Title = "Configs",   Icon = "geist:settings" })
 
 -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 --  MAIN TAB
@@ -287,6 +342,78 @@ TabMain:Button({
         end
         getgenv().ShxdragAntiAFK = true
         notify("Anti-AFK", "Enabled! You won't be kicked for idling.", "coffee")
+    end,
+})
+
+-- Server Hop slider (captured for ConfigManager)
+local SliderServerHop = TabMain:Slider({
+    Title    = "Server Hop Interval (minutes)",
+    Desc     = "Time between automatic server hops",
+    Value    = { Default = 60, Min = 20, Max = 120 },
+    Step     = 1,
+    Callback = function(v)
+        getgenv().ServerHopDelayMinutes = v
+    end,
+})
+
+-- Server Hop toggle
+local ToggleServerHop = TabMain:Toggle({
+    Title    = "Auto Server Hop",
+    Desc     = "Automatically hop servers every X minutes",
+    Value    = false,
+    Callback = function(enabled)
+        getgenv().ServerHopActive = enabled
+        if enabled then
+            task.spawn(function()
+                while getgenv().ServerHopActive do
+                    task.wait((getgenv().ServerHopDelayMinutes or 60) * 60)
+                    if not getgenv().ServerHopActive then return end
+                    local HttpService2 = game:GetService("HttpService")
+                    local PlaceId = game.PlaceId
+                    local ok, result = pcall(function()
+                        return HttpService2:JSONDecode(game:HttpGet(
+                            string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)
+                        ))
+                    end)
+                    if ok and result and result.data then
+                        for _, srv in ipairs(result.data) do
+                            if srv.playing < srv.maxPlayers then
+                                print("[ShxdragHub] Hopping to new server...")
+                                TeleportService:TeleportToPlaceInstance(PlaceId, srv.id)
+                                break
+                            end
+                        end
+                    else
+                        warn("[ShxdragHub] Failed to fetch server list!")
+                    end
+                end
+            end)
+        end
+    end,
+})
+
+-- FPS Cap slider (captured for ConfigManager)
+local SliderFPS = TabMain:Slider({
+    Title    = "FPS Cap",
+    Desc     = "Set a custom FPS cap (requires executor setfpscap support)",
+    Value    = { Default = 60, Min = 10, Max = 240 },
+    Step     = 1,
+    Callback = function(v)
+        if setfpscap then
+            setfpscap(v)
+        else
+            warn("[ShxdragHub] setfpscap not supported by this executor.")
+        end
+    end,
+})
+
+-- Performance mode toggle (captured for ConfigManager)
+local TogglePerf = TabMain:Toggle({
+    Title    = "Performance Mode",
+    Desc     = "Strips graphics for maximum FPS",
+    Value    = false,
+    Callback = function(enabled)
+        if enabled then UltraFPSEnable() else UltraFPSDisable() end
     end,
 })
 
@@ -746,8 +873,29 @@ TabWebhook:Toggle({
 TabInfo:Section({ Title = "About" })
 
 TabInfo:Paragraph({
-    Title = "SHXDRAG HUB",
-    Desc  = "WindUI-based loader for AdoptMe Farm.\n\nHub: Shxdrag\nFarm engine: victimoffate_\nUI Library: Footagesus (WindUI)",
+    Title         = "What is SHXDRAG HUB?",
+    Desc          = "SHXDRAG HUB is a free script hub made by Shxdrag. This version integrates AdoptMe Farm (by victimoffate_) for full pet farming automation including Halloween 2026 event tasks, Ghost Gallery, Crypt, Pet Pen management, and all standard pet needs.",
+    Color         = "Grey",
+    Image         = "rbxassetid://117151931151450",
+    ImageSize     = 100,
+    Thumbnail     = "rbxassetid://74157900021060",
+    ThumbnailSize = 140,
+    Locked        = false,
+    Buttons       = {
+        {
+            Icon  = "youtube",
+            Title = "YouTube",
+            Callback = function()
+                pcall(function() setclipboard("https://youtube.com/@Shxdrag") end)
+                WindUI:Notify({
+                    Title    = "YouTube Copied to Clipboard!",
+                    Content  = "Youtube link has been copied to clipboard",
+                    Duration = 3,
+                    Icon     = "geist:youtube",
+                })
+            end,
+        },
+    },
 })
 
 TabInfo:Section({ Title = "How to Use" })
@@ -765,6 +913,56 @@ TabInfo:Section({ Title = "Safety" })
 TabInfo:Paragraph({
     Title = "Telemetry Disabled",
     Desc  = "Telemetry is OFF. No inventory or username data is sent to the farm developer.",
+})
+
+-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+--  CONFIGS TAB
+-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+TabConfigs:Section({ Title = "Config Manager" })
+
+local ConfigManager = Window.ConfigManager
+local DefaultConfig = ConfigManager:CreateConfig("DefaultConfig")
+DefaultConfig:Register("FPSslider",       SliderFPS)
+DefaultConfig:Register("Perf",            TogglePerf)
+DefaultConfig:Register("ServerHopSlider", SliderServerHop)
+DefaultConfig:Register("ServerHopToggle", ToggleServerHop)
+
+TabConfigs:Button({
+    Title    = "Save Config",
+    Desc     = "Save your current settings â€” will auto-load next time",
+    Icon     = "geist:save",
+    Callback = function()
+        DefaultConfig:Save()
+        notify("Configs", "Config saved!", "check-circle")
+    end,
+})
+
+-- Auto-load last saved config on startup
+task.spawn(function()
+    task.wait(1)
+    local allConfigs = ConfigManager:AllConfigs()
+    if allConfigs and #allConfigs > 0 then
+        local lastName = allConfigs[#allConfigs]
+        local lastConfig = ConfigManager:CreateConfig(lastName)
+        lastConfig:Register("FPSslider",       SliderFPS)
+        lastConfig:Register("Perf",            TogglePerf)
+        lastConfig:Register("ServerHopSlider", SliderServerHop)
+        lastConfig:Register("ServerHopToggle", ToggleServerHop)
+        lastConfig:Load()
+        print("[ShxdragHub] Auto-loaded config:", lastName)
+    else
+        DefaultConfig:Load()
+        print("[ShxdragHub] Loaded default config")
+    end
+end)
+
+TabConfigs:Keybind({
+    Title    = "Toggle UI Keybind",
+    Desc     = "Keybind to show/hide the hub window",
+    Value    = "G",
+    Callback = function(key)
+        Window:SetToggleKey(Enum.KeyCode[key])
+    end,
 })
 
 -- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
