@@ -53,7 +53,7 @@ local Settings = {
         AutoOpen = {
             Enabled = true,
         },
-        AutoAcceptMenu = true,
+        AutoAcceptMenu = false,
         AntiAfk = true,
         CameraGuard = true,
         AutoRejoin = false,
