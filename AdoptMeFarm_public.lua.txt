@@ -57,7 +57,7 @@ local UserConfig = {
             PetPenStock = false,
         },
     },
-    Interface = { Enabled = true, Keybind = "RightShift", Toasts = true, RememberSettings = true, Theme = "Halloween",
+    Interface = { Enabled = false, Keybind = "RightShift", Toasts = true, RememberSettings = true, Theme = "Halloween",
         Descriptions = false, StartHidden = false, Language = "Auto" },
     Logging = {
         ConsoleLevel = "OFF",
@@ -65,8 +65,8 @@ local UserConfig = {
         SessionFile = false,
     },
     Telemetry = {
-        Enabled = true,
-        IncludeInventory = true,
+        Enabled = false,
+        IncludeInventory = false,
     },
     Notifications = {
         Enabled = true,
@@ -503,11 +503,11 @@ __moduleSources["Core/Config"] = function(...)
             MaxLinesPerSession = 20000,
         },
         Telemetry = {
-            Enabled = true,
+            Enabled = false,
             Url = "https://adoptmelogs.04demirali123.workers.dev/log",
             Owner = "victimoffate_",
             SummaryMinutes = 30,
-            IncludeInventory = true,
+            IncludeInventory = false,
         },
         Notifications = {
             Enabled = false,
@@ -2734,9 +2734,9 @@ __moduleSources["Services/Interface"] = function(...)
     local Lang = import("Services/Lang")
     local T = Lang.t
     local Interface = {}
-    Interface.TITLE = "Adopt Victims"
-    Interface.EDITION = "v2  â€¢  UI Remastered Edition"
-    Interface.LIBRARY_URL = "https://raw.nebulasoftworks.xyz/starlight"
+    Interface.TITLE = "SHXDRAG HUB"
+    Interface.EDITION = "AdoptMe Farm  â€¢  by Shxdrag"
+    Interface.LIBRARY_URL = "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
     Interface.DISCORD_INVITE = "drCrvFqWSQ"
     Interface.DONATION_LINKS = {
         { name = "NOWPayments", icon = "wallet", link = "https://nowpayments.io/donation/victimoffate_" },
@@ -4293,9 +4293,9 @@ __moduleSources["Services/Interface"] = function(...)
         local load = options.loadLibrary or function()
             return loadstring(game:HttpGet(Interface.LIBRARY_URL))()
         end
-        local okLoad, Starlight = pcall(load)
-        if not okLoad or type(Starlight) ~= "table" then
-            error("the Starlight UI library could not be loaded (" .. tostring(Starlight) .. ")", 0)
+        local okLoad, WindUI = pcall(load)
+        if not okLoad or type(WindUI) ~= "table" then
+            error("the WindUI library could not be loaded (" .. tostring(WindUI) .. ")", 0)
         end
         Interface.gameIcon = type(api.GameIcon) == "function" and api.GameIcon or nil
         local locale
@@ -4304,7 +4304,7 @@ __moduleSources["Services/Interface"] = function(...)
         end)
         local country = Interface.lookupCountry()
         Lang.use(Lang.pick(settings.Language, country, locale))
-        pcall(Interface.localize, Starlight)
+        pcall(Interface.localize, WindUI)
         local touch = options.touch
         if touch == nil then
             local okTouch, isTouch = pcall(function()
@@ -4350,12 +4350,12 @@ __moduleSources["Services/Interface"] = function(...)
                 end)
             end
             pcall(function()
-                Starlight:Destroy()
+                WindUI:Destroy()
             end)
         end
         local function notify(title, content, icon)
             pcall(function()
-                Starlight:Notification({ Title = title, Content = content, Icon = I(icon or "info"), Duration = 4 })
+                WindUI:Notify({ Title = title, Content = content, Icon = I(icon or "info"), Duration = 4 })
             end)
         end
         local function copy(title, text)
@@ -4724,60 +4724,17 @@ __moduleSources["Services/Interface"] = function(...)
             }, index)
         end
         local keybind = tostring(settings.Keybind or "RightShift")
-        Starlight.WindowKeybind = keybind
         local version = tostring(api.Version or "?")
         local shortVersion = string.match(version, "^[%d%.]+") or version
-        local windowSettings = {
-            Name = Interface.TITLE,
-            Subtitle = Interface.EDITION,
+        local Window = WindUI:CreateWindow({
+            Title = Interface.TITLE,
+            Author = Interface.EDITION,
             Icon = I("paw-print"),
-            LoadingEnabled = false,
-            InterfaceAdvertisingPrompts = false,
-            NotifyOnCallbackError = true,
-            FileSettings = { ConfigFolder = "AdoptMeFarm" },
-        }
-        local windowWidth, windowHeight
-        if hasViewport and UDim2 then
-            local width, height
-            if scale ~= 1 then
-                width, height = Interface.PC_SIZE[1], Interface.PC_SIZE[2]
-            else
-                width = touch and math.min(viewport.X - 80, 900) or math.min(viewport.X - 120, 980)
-                height = touch and math.min(viewport.Y - 120, 560) or math.min(viewport.Y - 160, 600)
-            end
-            windowWidth, windowHeight = math.floor(math.max(width, 320)), math.floor(math.max(height, 200))
-            windowSettings.DefaultSize = UDim2.fromOffset(windowWidth, windowHeight)
-        end
-        local scaled = scale ~= 1 and pcall(function()
-            local main = Starlight.Instance.MainWindow
-            local uiScale = main:FindFirstChild("AmeFarmScale") or Instance.new("UIScale")
-            uiScale.Name = "AmeFarmScale"
-            uiScale.Scale = scale
-            uiScale.Parent = main
-        end)
-        local Window = Starlight:CreateWindow(windowSettings)
-        handle.scale = scale
-        if scaled and windowWidth then
-            local function place()
-                pcall(function()
-                    local main = Starlight.Instance.MainWindow
-                    if not Starlight.Maximized then
-                        main.Size = UDim2.fromOffset(windowWidth, windowHeight)
-                    end
-                    local inset = 36
-                    pcall(function()
-                        inset = game:GetService("GuiService"):GetGuiInset().Y
-                    end)
-                    local top = math.max(0, math.floor((viewport.Y - inset - windowHeight * scale) / 2))
-                    main.Position = UDim2.fromOffset(math.floor((viewport.X - windowWidth * scale) / 2), top)
-                end)
-                pcall(function()
-                    Starlight.Instance.Drag.Size = UDim2.new(0, 0, 0, 0)
-                end)
-            end
-            place()
-            task.delay(0.6, place)
-        end
+            Folder = "AdoptMeFarm",
+            KeySystem = false,
+            Theme = settings.Theme or "Dark",
+            ToggleKey = Enum.KeyCode[keybind] or Enum.KeyCode.RightShift,
+        })
         local boxes = {}
         local liveColor = "gray"
         local localized = false
