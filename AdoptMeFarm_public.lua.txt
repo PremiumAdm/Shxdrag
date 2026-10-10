@@ -10314,7 +10314,7 @@ __moduleSources["Game/EventTasks"] = function(...)
                     ctx.interaction:send("HauntletJoin", E.HauntletId, true, nil)
                     ctx.waitUntil(function()
                         return h.joinAcceptedAt ~= nil or h.join ~= nil
-                    end, 4)
+                    end, 8)
                 end
                 if not h.joinAcceptedAt and not h.join then
                     return false, "join was not accepted"
@@ -10354,7 +10354,7 @@ __moduleSources["Game/EventTasks"] = function(...)
                 lastSeq = room.seq
                 task.wait(1.5)
                 local tried, forced = {}, nil
-                for _ = 1, 4 do
+                for _ = 1, 2 do
                     if over() or h.room ~= room then
                         break
                     end
@@ -10373,7 +10373,7 @@ __moduleSources["Game/EventTasks"] = function(...)
                     ctx.interaction:send("HauntletMessage", sessionId, "try_use_item", plan.use)
                     ctx.waitUntil(function()
                         return h.usedSeq > seq or over()
-                    end, 5)
+                    end, 6)
                     local answer = h.usedItems[seq + 1]
                     if answer and answer.ok then
                         itemsUsed += 1
@@ -10399,14 +10399,14 @@ __moduleSources["Game/EventTasks"] = function(...)
                         }).door
                     end
                     for attempt = 1, 2 do
+                        if attempt > 1 then task.wait(5) end
                         ctx.interaction:send("HauntletMessage", sessionId, "try_pick_door", door)
                         ctx.waitUntil(function()
                             return h.picked ~= nil or h.room ~= room or over()
-                        end, 5)
+                        end, 8)
                         if h.picked or h.room ~= room or over() then
                             break
                         end
-                        task.wait(2)
                     end
                     picks += 1
                     ctx.logger:debug("Event", string.format("Hauntlet: room %d (%s) door %d %s, ghost %s, hearts %d", room.seq,
