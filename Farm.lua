@@ -1,900 +1,733 @@
+--[[
+    SHXDRAG HUB | AdoptMe Farm
+    WindUI Loader
+    Credits: Shxdrag
+    Farm script: victimoffate_ (Adopt Victims v2)
+    UI Library: Footagesus (WindUI)
+]]
+
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
-local u1 = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-do
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    --  AdoptMe Farm Settings  (Script 3 settings injected here)
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    getgenv().AdoptMeFarmSettings = {
-        Farm = {
+
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  LOAD WIND UI
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  FARM SETTINGS (injected into getgenv so the farm script reads them)
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+local Settings = {
+    Farm = {
+        Enabled = false,
+        BabyMode = true,
+        AutoNeeds = {
             Enabled = true,
-            BabyMode = true,
-            FastTravel = true,
-            Tasks = {
-                pet_me = true,
-                salon = true,
-                bored = true,
-                cat_cafe = true,
-                sleepy = true,
-                dirty = true,
-                toilet = true,
-                hungry = true,
-                thirsty = true,
-                play = true,
-                pizza_party = true, school = true, sick = true,
-                camping = true, beach_party = true,
-                mystery = true,
-                walk = true,
-                ride = true,
-            },
-            BuyWater = true,
-            BuyFood = true,
-            MaxBuysPerSession = 0,
-            AutoAcceptMenu = false,
-            CollectCashback = false,
-            SpotTravel = "teleport",
-            KeepPetEquipped = false,
-            GameTravel = false,
-            HomeByRespawn = false,
-            HouseDoorExit = true,
-            SkipFullGrown = false,
-            BuyEgg = false,
-            EggToBuy = "cracked_egg",
-            MaxEggBuysPerSession = 0,
-            AntiAfk = false,
-            AutoPotions = {
-                Enabled = false,
-                PetKinds = {},
-            },
-            AutoOpen = {
-                Enabled = false,
-                Exclude = {},
-            },
-            Event = {
-                Enabled = false,
-                GhostGallery = false,
-                Crypt = false,
-                MummySpider = false,
-                Quests = false,
-                HouseVisits = false,
-                PigeonNest = false,
-                StrayCat = false,
-                PetPen = false,
-                PetPenMinutes = 15,
-                PetPenSlots = 4,
-                PetPenStock = false,
-            },
+            Skip = {},
         },
-        Logging = {
-            ConsoleLevel = "OFF",
-            FileEnabled = false,
-            SessionFile = false,
+        KeepPetEquipped = true,
+        PreferNeon = true,
+        PetOrder = "youngest",
+        FarmPetKinds = {},
+        BuyEgg = true,
+        EggToBuy = "cracked_egg",
+        BuyFood = true,
+        BuyWater = true,
+        AutoPotions = {
+            Enabled = true,
+            Skip = {},
         },
-        Telemetry = {
+        AutoNeon = {
+            Enabled = false,
+            Mega = false,
+        },
+        CollectCashback = true,
+        AutoOpen = {
             Enabled = true,
         },
-        Notifications = {
+        AutoAcceptMenu = false,
+        AntiAfk = true,
+        CameraGuard = true,
+        AutoRejoin = false,
+        SpotTravel = "teleport",
+        GameTravel = true,
+        HomeByRespawn = true,
+        FoodBowlTrip = false,
+        StuckRecovery = {
             Enabled = true,
-            Webhooks = {
-                Summary = "",
-                Alerts = "",
-            },
-            SummaryIntervalMinutes = 30,
-            SendOnTaskComplete = false,
-            SendOnError = true,
-            SendOnKick = true,
-            SendOnStartStop = true,
-            SendTestMessageOnStart = false,
-            PingDiscordUserId = "",
-            PingOn = {
-                Kick = true,
-                Error = true,
-                Summary = true,
-                TaskCompleted = true,
-                SessionStopped = true,
-                PreviousSession = true,
-            },
-            IncludeUsername = true,
+            Seconds = 240,
         },
-    }
-
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    --  AdoptMe Farm Live Settings Reference (mirrors getgenv table)
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    local FarmSettings = getgenv().AdoptMeFarmSettings
-    local FarmAPI = nil  -- set after loader runs
-
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    --  SHXDRAG HUB GUI
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    local TeleportService = game:GetService("TeleportService")
-    local v9 = type(hookmetamethod) == "function"
-    if not v9 then
-        u1:Notify({
-            Title = "shit executor detected",
-            Content = "anti teleport and most functions wont work",
-            Duration = 12,
-            Icon = "geist:info",
-        })
-    end
-    local u10 = nil
-    local u11 = nil
-    if v9 then
-        u10 = hookmetamethod(game, "__index", function(p6, p7)
-            if p6 == TeleportService then
-                if tostring(p7):lower() ~= "teleport" then
-                    if tostring(p7) == "TeleportToPlaceInstance" then
-                        error("Expected ':' not '.' calling member function TeleportToPlaceInstance", 2)
-                    end
-                else
-                    error("Expected ':' not '.' calling member function Teleport", 2)
-                end
-            end
-            return u10(p6, p7)
-        end)
-        u11 = hookmetamethod(game, "__namecall", function(p8, ...)
-            local v60 = getnamecallmethod()
-            if p8 ~= TeleportService or tostring(v60):lower() ~= "teleport" and tostring(v60) ~= "TeleportToPlaceInstance" then
-                return u11(p8, ...)
-            end
-        end)
-    end
-
-    local u7 = u1:CreateWindow({
-        Title = "SHXDRAG HUB | AdoptMe Farm",
-        Icon = "geist:eye",
-        Author = "by Shxdrag",
-        Folder = "shxdrag_hub_adoptme",
-        KeySystem = false,
-    })
-
-    -- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    local v12 = u7:Tab({
-        Title = "Main",
-        Icon = "geist:home",
-        Locked = false,
-    })
-    local vFarm = u7:Tab({
-        Title = "Farm",
-        Icon = "leaf",
-        Locked = false,
-    })
-    local vEvent = u7:Tab({
-        Title = "Halloween",
-        Icon = "ghost",
-        Locked = false,
-    })
-    local v13 = u7:Tab({
-        Title = "Information",
-        Icon = "geist:information",
-        Locked = false,
-    })
-
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    --  MAIN TAB â€” Farm Status + Controls
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
-    local farmStartTime = nil
-
-    -- Start Farm button
-    v12:Button({
-        Title = "Start Farm",
-        Desc = "Starts the farm using all toggles you have turned ON in the Farm and Halloween tabs",
-        Icon = "play",
-        Callback = function()
-            if FarmAPI then
-                u1:Notify({
-                    Title = "Farm",
-                    Content = "Farm is already running!",
-                    Duration = 3,
-                    Icon = "info",
-                })
-                return
-            end
-
-            -- Build a summary of every toggle the user has enabled
-            local F = FarmSettings.Farm
-            local E = FarmSettings.Farm.Event
-            local activeList = {}
-
-            -- Core
-            if F.Enabled        then table.insert(activeList, "Farm Core") end
-            if F.BabyMode       then table.insert(activeList, "Baby Mode") end
-            if F.FastTravel     then table.insert(activeList, "Fast Travel") end
-            if F.BuyFood        then table.insert(activeList, "Buy Food") end
-            if F.BuyWater       then table.insert(activeList, "Buy Water") end
-            if F.SkipFullGrown  then table.insert(activeList, "Skip Full-Grown") end
-            if F.BuyEgg         then table.insert(activeList, "Buy Egg") end
-            if F.KeepPetEquipped then table.insert(activeList, "Keep Pet Equipped") end
-            if F.CollectCashback then table.insert(activeList, "Collect Cashback") end
-            if F.AutoAcceptMenu  then table.insert(activeList, "Auto Accept Menu") end
-            if F.HomeByRespawn   then table.insert(activeList, "Home By Respawn") end
-            if F.AutoPotions.Enabled then table.insert(activeList, "Auto Age Potions") end
-            if F.AutoOpen.Enabled    then table.insert(activeList, "Auto Open Gifts") end
-            -- Halloween event
-            if E.Enabled        then table.insert(activeList, "Halloween Event") end
-            if E.GhostGallery   then table.insert(activeList, "Ghost Gallery") end
-            if E.Crypt          then table.insert(activeList, "Crypt") end
-            if E.MummySpider    then table.insert(activeList, "Mummy Spider") end
-            if E.Quests         then table.insert(activeList, "Daily Quests") end
-            if E.HouseVisits    then table.insert(activeList, "House Visits") end
-            if E.PigeonNest     then table.insert(activeList, "Pigeon Nest") end
-            if E.StrayCat       then table.insert(activeList, "Stray Cat") end
-            if E.PetPen         then table.insert(activeList, "Pet Pen") end
-            if E.PetPenStock    then table.insert(activeList, "Pet Pen Auto Stock") end
-
-            if #activeList == 0 then
-                u1:Notify({
-                    Title = "No Features Enabled",
-                    Content = "Turn on at least one toggle in the Farm or Halloween tabs first!",
-                    Duration = 5,
-                    Icon = "alert-triangle",
-                })
-                return
-            end
-
-            local summary = table.concat(activeList, ", ")
-            u1:Notify({
-                Title = "Starting Farm",
-                Content = "Active: " .. summary,
-                Duration = 6,
-                Icon = "play",
-            })
-
-            task.spawn(function()
-                local SCRIPT_URL = "https://raw.githubusercontent.com/PremiumAdm/Shxdrag/refs/heads/main/AdoptMeFarm_public.lua.txt"
-                getgenv().AdoptMeFarmLoaderInfo = { Url = SCRIPT_URL }
-                local ok, source = pcall(function()
-                    return game:HttpGet(SCRIPT_URL .. "?nocache=" .. tostring(os.time()))
-                end)
-                if not (ok and type(source) == "string" and #source > 5000
-                    and string.find(string.sub(source, 1, 300), "AdoptMe Farm  v", 1, true)) then
-                    u1:Notify({
-                        Title = "Farm Error",
-                        Content = "Download failed or invalid script. Check executor HTTP.",
-                        Duration = 8,
-                        Icon = "alert-triangle",
-                    })
-                    warn("[SHXDRAG HUB] Farm download failed or not AdoptMe Farm: check SCRIPT_URL")
-                    return
-                end
-                local program, compileError = loadstring(source)
-                if not program then
-                    u1:Notify({
-                        Title = "Farm Error",
-                        Content = "Script compile error: " .. tostring(compileError),
-                        Duration = 8,
-                        Icon = "alert-triangle",
-                    })
-                    warn("[SHXDRAG HUB] Farm compile error: " .. tostring(compileError))
-                    return
-                end
-                local runOk, apiOrErr = pcall(program)
-                if runOk and type(apiOrErr) == "table" and apiOrErr.Stop then
-                    FarmAPI = apiOrErr
-                    farmStartTime = os.time()
-                    u1:Notify({
-                        Title = "Farm Running",
-                        Content = "Started with: " .. summary,
-                        Duration = 5,
-                        Icon = "check",
-                    })
-                else
-                    u1:Notify({
-                        Title = "Farm Running",
-                        Content = "Active: " .. summary,
-                        Duration = 50,
-                        Icon = "info",
-                    })
-                end
-            end)
-        end,
-    })
-
-    -- Stop Farm button
-    v12:Button({
-        Title = "Stop Farm",
-        Desc = "Stop the running farm",
-        Icon = "square",
-        Callback = function()
-            if FarmAPI and FarmAPI.Stop then
-                FarmAPI.Stop("STOP ALL FARM")
-                FarmAPI = nil
-                farmStartTime = nil
-                u1:Notify({
-                    Title = "AdoptMe Farm",
-                    Content = "Farm stopped.",
-                    Duration = 3,
-                    Icon = "square",
-                })
-            else
-                u1:Notify({
-                    Title = "Farm",
-                    Content = "Farm is not running.",
-                    Duration = 3,
-                    Icon = "info",
-                })
-            end
-        end,
-    })
-
-    -- Anti-AFK button
-    v12:Button({
-        Title = "Anti-AFK",
-        Desc = "Prevent idle kick (one-time enable)",
-        Icon = "coffee",
-        Callback = function()
-            if not getgenv().AntiAFKEnabled then
-                local t1 = {
-                    VirtualUser = game:GetService("VirtualUser"),
-                    Players = game:GetService("Players"),
-                }
-                local LocalPlayer2 = t1.Players.LocalPlayer
-                if getconnections then
-                    local v63, v64, v65 = pairs(getconnections(LocalPlayer2.Idled))
-                    for _, v67 in v63, v64, v65 do
-                        local v68 = v67
-                        if v68.Disable then
-                            v68:Disable()
-                        elseif v68.Disconnect then
-                            v68:Disconnect()
-                        end
-                    end
-                else
-                    LocalPlayer2.Idled:Connect(function()
-                        t1.VirtualUser:CaptureController()
-                        t1.VirtualUser:ClickButton2(Vector2.new())
-                    end)
-                end
-                getgenv().AntiAFKEnabled = true
-                u1:Notify({
-                    Title = "Anti-AFK Enabled",
-                    Content = "You will no longer be kicked for being AFK!",
-                    Duration = 3,
-                    Icon = "coffee",
-                })
-            else
-                u1:Notify({
-                    Title = "Anti-AFK",
-                    Content = "Anti-AFK is already enabled!",
-                    Duration = 3,
-                    Icon = "coffee",
-                })
-            end
-        end,
-    })
-
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    --  FARM TAB â€” Core farm toggles and options
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    vFarm:Section({
-        Title = "Core Farm Settings",
-        TextXAlignment = "Left",
-        TextSize = 20,
-    })
-
-    vFarm:Toggle({
-        Title = "Farm Enabled",
-        Desc = "Turns the entire farm on. Must be ON for any pet tasks to run.",
-        Value = FarmSettings.Farm.Enabled,
-        Callback = function(v)
-            FarmSettings.Farm.Enabled = v
-        end,
-    })
-
-    vFarm:Toggle({
-        Title = "Baby Mode",
-        Desc = "Joins the Babies team so the farm can complete tasks that require you to be a Baby (e.g. school, salon). Turn this ON if you are farming baby pets.",
-        Value = FarmSettings.Farm.BabyMode,
-        Callback = function(v)
-            FarmSettings.Farm.BabyMode = v
-        end,
-    })
-
-    vFarm:Toggle({
-        Title = "Fast Travel",
-        Desc = "Teleports directly to task locations instead of walking. Speeds up farming significantly.",
-        Value = FarmSettings.Farm.FastTravel,
-        Callback = function(v)
-            FarmSettings.Farm.FastTravel = v
-        end,
-    })
-
-    vFarm:Toggle({
-        Title = "Buy Food",
-        Desc = "Automatically buys food from the store when your pet is hungry and you have no food in your backpack.",
-        Value = FarmSettings.Farm.BuyFood,
-        Callback = function(v)
-            FarmSettings.Farm.BuyFood = v
-        end,
-    })
-
-    vFarm:Toggle({
-        Title = "Buy Water",
-        Desc = "Automatically buys water from the store when your pet is thirsty and you have no water in your backpack.",
-        Value = FarmSettings.Farm.BuyWater,
-        Callback = function(v)
-            FarmSettings.Farm.BuyWater = v
-        end,
-    })
-
-    vFarm:Toggle({
-        Title = "Skip Full Grown Pets",
-        Desc = "Ignores pets that are already fully grown and only farms pets that still have tasks to complete.",
-        Value = FarmSettings.Farm.SkipFullGrown,
-        Callback = function(v)
-            FarmSettings.Farm.SkipFullGrown = v
-        end,
-    })
-
-    vFarm:Toggle({
-        Title = "Buy Egg",
-        Desc = "Automatically buys an egg from the shop when you have no farmable pets left. Useful for AFK sessions.",
-        Value = FarmSettings.Farm.BuyEgg,
-        Callback = function(v)
-            FarmSettings.Farm.BuyEgg = v
-        end,
-    })
-
-    vFarm:Toggle({
-        Title = "Keep Pet Equipped",
-        Desc = "Re-equips your pet if it ever gets unequipped during the farm. Prevents the farm from stalling.",
-        Value = FarmSettings.Farm.KeepPetEquipped,
-        Callback = function(v)
-            FarmSettings.Farm.KeepPetEquipped = v
-        end,
-    })
-
-    vFarm:Toggle({
-        Title = "Collect Cashback",
-        Desc = "Automatically collects your in-game cashback reward on a timer. Free bucks while farming.",
-        Value = FarmSettings.Farm.CollectCashback,
-        Callback = function(v)
-            FarmSettings.Farm.CollectCashback = v
-        end,
-    })
-
-    vFarm:Toggle({
-        Title = "Auto Accept Menu",
-        Desc = "Automatically clicks Play/Accept when a popup menu appears, so the farm never gets stuck waiting.",
-        Value = FarmSettings.Farm.AutoAcceptMenu,
-        Callback = function(v)
-            FarmSettings.Farm.AutoAcceptMenu = v
-        end,
-    })
-
-    vFarm:Toggle({
-        Title = "Home By Respawn",
-        Desc = "Returns home by respawning your character instead of walking. Much faster than using the door.",
-        Value = FarmSettings.Farm.HomeByRespawn,
-        Callback = function(v)
-            FarmSettings.Farm.HomeByRespawn = v
-        end,
-    })
-
-    vFarm:Section({
-        Title = "Auto Potions",
-        TextXAlignment = "Left",
-        TextSize = 20,
-    })
-
-    vFarm:Toggle({
-        Title = "Auto Age Potions",
-        Desc = "Automatically uses Age Potions from your backpack on your equipped pet to grow it faster. Only works on pets that are not yet fully grown.",
-        Value = FarmSettings.Farm.AutoPotions.Enabled,
-        Callback = function(v)
-            FarmSettings.Farm.AutoPotions.Enabled = v
-        end,
-    })
-
-    vFarm:Section({
-        Title = "Auto Open",
-        TextXAlignment = "Left",
-        TextSize = 20,
-    })
-
-    vFarm:Toggle({
-        Title = "Auto Open Gifts & Chests",
-        Desc = "Automatically opens any gifts, chests, or boxes sitting in your backpack. Good for collecting rewards without stopping the farm.",
-        Value = FarmSettings.Farm.AutoOpen.Enabled,
-        Callback = function(v)
-            FarmSettings.Farm.AutoOpen.Enabled = v
-        end,
-    })
-
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    --  HALLOWEEN TAB â€” Event-specific features from Script 2 & 3
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    vEvent:Section({
-        Title = "Halloween 2026 Event",
-        TextXAlignment = "Left",
-        TextSize = 20,
-    })
-
-    vEvent:Toggle({
-        Title = "Event Enabled",
-        Desc = "Master switch for all Halloween event tasks. Must be ON for any event feature below to run.",
-        Value = FarmSettings.Farm.Event.Enabled,
-        Callback = function(v)
-            FarmSettings.Farm.Event.Enabled = v
-        end,
-    })
-
-    vEvent:Toggle({
-        Title = "Ghost Gallery",
-        Desc = "Automatically joins the Ghost Gallery minigame and vacuums ghosts to earn Candy and Rusty Keys.",
-        Value = FarmSettings.Farm.Event.GhostGallery,
-        Callback = function(v)
-            FarmSettings.Farm.Event.GhostGallery = v
-        end,
-    })
-
-    vEvent:Toggle({
-        Title = "Crypt",
-        Desc = "Uses your Rusty Keys to open the Crypt grave and collect event rewards. Requires Ghost Gallery to be farming keys first.",
-        Value = FarmSettings.Farm.Event.Crypt,
-        Callback = function(v)
-            FarmSettings.Farm.Event.Crypt = v
-        end,
-    })
-
-    vEvent:Toggle({
-        Title = "Mummy Spider",
-        Desc = "Collects the Mummy Spider pet from the Crypt once all floors are unlocked. Enable Crypt to unlock floors first.",
-        Value = FarmSettings.Farm.Event.MummySpider,
-        Callback = function(v)
-            FarmSettings.Farm.Event.MummySpider = v
-        end,
-    })
-
-    vEvent:Toggle({
-        Title = "Daily Quests",
-        Desc = "Automatically claims completed daily event quests and collects the Halloween quest board reward each day.",
-        Value = FarmSettings.Farm.Event.Quests,
-        Callback = function(v)
-            FarmSettings.Farm.Event.Quests = v
-        end,
-    })
-
-    vEvent:Toggle({
-        Title = "House Visits",
-        Desc = "Visits other players houses to complete 'Visit X Homes' daily quests. Runs automatically as needed.",
-        Value = FarmSettings.Farm.Event.HouseVisits,
-        Callback = function(v)
-            FarmSettings.Farm.Event.HouseVisits = v
-        end,
-    })
-
-    vEvent:Toggle({
-        Title = "Pigeon Nest",
-        Desc = "Deposits Crypt Twigs into the pigeon nest at the Hotel to complete event tasks.",
-        Value = FarmSettings.Farm.Event.PigeonNest,
-        Callback = function(v)
-            FarmSettings.Farm.Event.PigeonNest = v
-        end,
-    })
-
-    vEvent:Toggle({
-        Title = "Stray Cat",
-        Desc = "Gives water to the Stray Cat at its spawn location once per day. Rewards +50 Candy each time.",
-        Value = FarmSettings.Farm.Event.StrayCat,
-        Callback = function(v)
-            FarmSettings.Farm.Event.StrayCat = v
-        end,
-    })
-
-    vEvent:Section({
-        Title = "Pet Pen",
-        TextXAlignment = "Left",
-        TextSize = 20,
-    })
-
-    vEvent:Toggle({
-        Title = "Pet Pen",
-        Desc = "Automatically manages the Pet Pen: claims rewards when ready, removes fully grown pets, and replaces them with pets that still need to grow.",
-        Value = FarmSettings.Farm.Event.PetPen,
-        Callback = function(v)
-            FarmSettings.Farm.Event.PetPen = v
-        end,
-    })
-
-    vEvent:Toggle({
-        Title = "Pet Pen Auto Stock",
-        Desc = "Keeps all Pet Pen slots filled with growing pets at all times. Will buy eggs from the shop if you run out of growing pets.",
-        Value = FarmSettings.Farm.Event.PetPenStock,
-        Callback = function(v)
-            FarmSettings.Farm.Event.PetPenStock = v
-        end,
-    })
-
-    vEvent:Slider({
-        Title = "Pet Pen Slots",
-        Desc = "How many Pet Pen slots you have (4 default, 5 with gamepass)",
-        Step = 1,
-        Value = {
-            Min = 1,
-            Max = 5,
-            Default = FarmSettings.Farm.Event.PetPenSlots,
-        },
-        Callback = function(v)
-            FarmSettings.Farm.Event.PetPenSlots = v
-        end,
-    })
-
-    vEvent:Slider({
-        Title = "Pet Pen Check Interval (minutes)",
-        Desc = "How often to claim and restock the Pet Pen",
-        Step = 1,
-        Value = {
-            Min = 5,
-            Max = 60,
-            Default = FarmSettings.Farm.Event.PetPenMinutes,
-        },
-        Callback = function(v)
-            FarmSettings.Farm.Event.PetPenMinutes = v
-        end,
-    })
-
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    --  MAIN TAB (cont.) â€” FPS / Server Hop / Performance
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    v12:Section({
-        Title = "Other Features",
-        TextXAlignment = "Left",
-        TextSize = 20,
-    })
-
-    local u31 = v12:Slider({
-        Title = "ServerHop Interval (minutes)",
-        Desc = "Time between server hops",
-        Step = 1,
-        Value = {
-            Min = 20,
-            Max = 120,
-            Default = 60,
-        },
-        Callback = function(p12)
-            getgenv().ServerHopDelayMinutes = p12
-        end,
-    })
-
-    local u32 = v12:Toggle({
-        Title = "Auto Server Hop",
-        Desc = "Automatically hop servers every X minutes",
-        Value = false,
-        Callback = function(p13)
-            getgenv().ServerHopActive = p13
-            if p13 then
-                task.spawn(function()
-                    while getgenv().ServerHopActive do
-                        task.wait((getgenv().ServerHopDelayMinutes or 60) * 60)
-                        if not getgenv().ServerHopActive then
-                            return
-                        end
-                        local TeleportService2 = game:GetService("TeleportService")
-                        local HttpService2 = game:GetService("HttpService")
-                        local PlaceId = game.PlaceId
-                        local ok, result = pcall(function()
-                            return HttpService2:JSONDecode(game:HttpGet(string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", PlaceId)))
-                        end)
-                        if ok and result and result.data then
-                            for _, v in ipairs(result.data) do
-                                if v.playing < v.maxPlayers then
-                                    print("Hopping to new server...")
-                                    TeleportService2:TeleportToPlaceInstance(PlaceId, v.id)
-                                    break
-                                end
-                            end
-                        else
-                            warn("Failed to fetch server list!")
-                        end
-                    end
-                end)
-            end
-        end,
-    })
-
-    local u33 = v12:Slider({
-        Title = "FPS Cap",
-        Desc = "Set a custom FPS cap",
-        Step = 1,
-        Value = {
-            Min = 10,
-            Max = 240,
-            Default = 60,
-        },
-        Callback = function(p14)
-            if not setfpscap then
-                warn("Your executor does not support setfpscap.")
-            else
-                setfpscap(p14)
-            end
-        end,
-    })
-
-    local Players3 = game:GetService("Players")
-    local LocalPlayer5 = Players3.LocalPlayer
-    local Lighting = game:GetService("Lighting")
-    local Workspace3 = game:GetService("Workspace")
-
-    local function UltraFPSEnable()
-        local v87, v88, v89 = ipairs(Players3:GetPlayers())
-        for _, v91 in v87, v88, v89 do
-            local v92 = v91
-            if v92 ~= LocalPlayer5 and v92.Character then
-                local v93, v94, v95 = ipairs(v92.Character:GetDescendants())
-                for _, v97 in v93, v94, v95 do
-                    local v98 = v97
-                    if not v98:IsA("BasePart") and not v98:IsA("MeshPart") then
-                        if not (not v98:IsA("Decal") and not v98:IsA("Texture")) then
-                            v98.Transparency = 1
-                        end
-                    else
-                        v98.Transparency = 1
-                    end
-                end
-            end
-        end
-        local v99, v100, v101 = ipairs(Workspace3:GetDescendants())
-        for _, v103 in v99, v100, v101 do
-            local v104 = v103
-            if not v104:IsA("BasePart") and not v104:IsA("MeshPart") then
-                if not v104:IsA("Decal") and not v104:IsA("Texture") then
-                    if v104:IsA("ParticleEmitter") or v104:IsA("Trail") or v104:IsA("Beam") then
-                        v104.Enabled = false
-                    end
-                else
-                    v104.Transparency = 1
-                end
-            else
-                v104.Transparency = 1
-                v104.Material = Enum.Material.SmoothPlastic
-                v104.Color = Color3.new(1, 1, 1)
-            end
-        end
-        Lighting.FogEnd = 1000000000
-        Lighting.GlobalShadows = false
-        Lighting.Brightness = 1
-        Lighting.OutdoorAmbient = Color3.new(1, 1, 1)
-        Lighting.Ambient = Color3.new(1, 1, 1)
-        Lighting.EnvironmentDiffuseScale = 0
-        Lighting.EnvironmentSpecularScale = 0
-        local v105, v106, v107 = ipairs(Lighting:GetChildren())
-        for _, v109 in v105, v106, v107 do
-            local v110 = v109
-            if v110:IsA("Sky") then
-                v110:Destroy()
-            end
-        end
-        local ColorCorrectionEffect = Instance.new("ColorCorrectionEffect", Lighting)
-        ColorCorrectionEffect.Name = "UltraFPSWhiteout"
-        ColorCorrectionEffect.TintColor = Color3.new(1, 1, 1)
-        ColorCorrectionEffect.Brightness = 1
-    end
-
-    local function UltraFPSDisable()
-        local existing = Lighting:FindFirstChild("UltraFPSWhiteout")
-        if existing then
-            existing:Destroy()
-        end
-        Lighting.FogEnd = 100000
-        Lighting.GlobalShadows = true
-        Lighting.Brightness = 2
-    end
-
-    local u39 = v12:Toggle({
-        Title = "Performance Mode",
-        Desc = "Game will be optimized for FPS",
-        Default = false,
-        Callback = function(p15)
-            if p15 then
-                UltraFPSEnable()
-            else
-                UltraFPSDisable()
-            end
-        end,
-    })
-
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    --  INFORMATION TAB
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    v13:Section({
-        Title = "Information about the script",
-        TextXAlignment = "Left",
-        TextSize = 20,
-    })
-    v13:Paragraph({
-        Title = "What is SHXDRAG HUB?",
-        Desc = "SHXDRAG HUB is a free script hub made by Shxdrag. This version integrates AdoptMe Farm (by victimoffate_) for full pet farming automation including Halloween 2026 event tasks, Ghost Gallery, Crypt, Pet Pen management, and all standard pet needs.",
-        Color = "Grey",
-        Image = "rbxassetid://117151931151450",
-        ImageSize = 100,
-        Thumbnail = "rbxassetid://74157900021060",
-        ThumbnailSize = 140,
-        Locked = false,
-        Buttons = {
-            {
-                Icon = "youtube",
-                Title = "YouTube",
-                Callback = function()
-                    pcall(function()
-                        setclipboard("https://youtube.com/@Shxdrag")
-                    end)
-                    u1:Notify({
-                        Title = "YouTube Copied to Clipboard!",
-                        Content = "Youtube link has been copied to clipboard",
-                        Duration = 3,
-                        Icon = "youtube",
-                    })
-                end,
+        DisableMinutes = 15,
+        MaxBuysPerSession = 0,
+        MaxEggBuysPerSession = 0,
+        Event = {
+            GhostGallery = true,
+            Hauntlet = false,
+            StrayCat = true,
+            Crypt = true,
+            CryptOpen = { "ladder" },
+            PigeonNest = true,
+            Quests = true,
+            HouseVisits = true,
+            PetPen = true,
+            PetPenMinutes = 15,
+            PetPenSlots = 4,
+            PetPenStock = true,
+            CandyPets = {
+                Enabled = false,
+                Pick = {},
             },
         },
-    })
+    },
+    Interface = {
+        Enabled = true,
+        Keybind = "RightShift",
+        Toasts = true,
+        RememberSettings = true,
+        Theme = "Halloween",
+        Descriptions = false,
+        StartHidden = false,
+        Language = "Auto",
+    },
+    Logging = {
+        ConsoleLevel = "OFF",
+        FileEnabled = false,
+        SessionFile = false,
+    },
+    Telemetry = {
+        Enabled = false,
+        IncludeInventory = false,
+    },
+    Notifications = {
+        Enabled = false,
+        Webhooks = {
+            Summary = "",
+            Alerts = "",
+        },
+        SummaryIntervalMinutes = 30,
+        SendOnTaskComplete = false,
+        SendOnError = true,
+        SendOnKick = true,
+        SendOnStartStop = true,
+        SendTestMessageOnStart = false,
+        PingDiscordUserId = "",
+        PingOn = {
+            Kick = true,
+            Error = true,
+            Summary = true,
+            TaskCompleted = true,
+            SessionStopped = true,
+            PreviousSession = true,
+        },
+        IncludeUsername = true,
+    },
+}
 
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    --  CONFIGS TAB
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    local v40 = u7:Tab({
-        Title = "Configs",
-        Icon = "settings",
-    })
-    local ConfigManager = u7.ConfigManager
-    local u42 = ConfigManager:CreateConfig("DefaultConfig")
-    u42:Register("FPSslider", u33)
-    u42:Register("Perf", u39)
-    u42:Register("ServerHopSlider", u31)
-    u42:Register("ServerHopToggle", u32)
-    v40:Button({
-        Title = "Save Config",
-        Desc = "Save your settings. Will auto load",
-        Callback = function()
-            u42:Save()
-        end,
-    })
-    task.spawn(function()
-        task.wait(1)
-        local v113 = ConfigManager:AllConfigs()
-        if #v113 > 0 then
-            local v114 = v113[#v113]
-            local v115 = ConfigManager:CreateConfig(v114)
-            v115:Register("FPSslider", u33)
-            v115:Register("Perf", u39)
-            v115:Register("ServerHopSlider", u31)
-            v115:Register("ServerHopToggle", u32)
-            v115:Load()
-            print("Auto-loaded last config:", v114)
-        else
-            u42:Load()
-            print("Loaded default config")
+getgenv().AdoptMeFarmSettings = Settings
+
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  ANTI-TELEPORT HOOK
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+local TeleportService = game:GetService("TeleportService")
+local hasHook = type(hookmetamethod) == "function"
+local _index, _namecall
+
+if hasHook then
+    _index = hookmetamethod(game, "__index", function(obj, key)
+        if obj == TeleportService then
+            local k = tostring(key):lower()
+            if k == "teleport" or tostring(key) == "TeleportToPlaceInstance" then
+                error("Expected ':' not '.' calling member function " .. tostring(key), 2)
+            end
         end
+        return _index(obj, key)
     end)
-    v40:Keybind({
-        Title = "Keybind",
-        Desc = "Keybind to open UI",
-        Value = "G",
-        Callback = function(p16)
-            u7:SetToggleKey(Enum.KeyCode[p16])
-        end,
-    })
-
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    --  Remote name resolver (kept from original, harmless utility)
-    -- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    local v43 = nil
-    local _next = next
-    local v45, v46 = getgc(true)
-    for _, v48 in _next, v45, v46 do
-        local v49 = v48
-        if type(v49) == "table" and rawget(v49, "get_remote_from_cache") then
-            v43 = v49
+    _namecall = hookmetamethod(game, "__namecall", function(obj, ...)
+        local method = tostring(getnamecallmethod()):lower()
+        if obj == TeleportService and (method == "teleport" or getnamecallmethod() == "TeleportToPlaceInstance") then
+            return
         end
-    end
-    if v43 then
-        table.foreach(debug.getupvalue(v43.get_remote_from_cache, 1), function(p17, p18)
-            p18.Name = p17
-        end)
-    end
-    return
+        return _namecall(obj, ...)
+    end)
+else
+    WindUI:Notify({
+        Title = "SHXDRAG HUB",
+        Content = "Weak executor detected â€” anti-teleport disabled.",
+        Duration = 8,
+        Icon = "geist:alert-triangle",
+    })
 end
 
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  STATE
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+local FarmAPI = nil
+local farmRunning = false
+
+local FARM_URL = "https://raw.githubusercontent.com/PremiumAdm/Shxdrag/refs/heads/main/AdoptMeFarm_public.lua.txt"
+
+local function startFarm()
+    if farmRunning then
+        WindUI:Notify({ Title = "SHXDRAG HUB", Content = "Farm is already running!", Duration = 3, Icon = "geist:info" })
+        return
+    end
+    WindUI:Notify({ Title = "SHXDRAG HUB", Content = "Downloading farm script...", Duration = 4, Icon = "geist:loader" })
+    task.spawn(function()
+        local ok, source = pcall(function()
+            return game:HttpGet(FARM_URL .. "?nocache=" .. tostring(os.time()))
+        end)
+        if not ok or type(source) ~= "string" or #source < 5000 then
+            WindUI:Notify({ Title = "Farm Error", Content = "Download failed. Check executor HTTP.", Duration = 8, Icon = "geist:x-circle" })
+            return
+        end
+        local program, err = loadstring(source)
+        if not program then
+            WindUI:Notify({ Title = "Farm Error", Content = "Compile error: " .. tostring(err), Duration = 8, Icon = "geist:x-circle" })
+            return
+        end
+        local runOk, apiOrErr = pcall(program)
+        if runOk and type(apiOrErr) == "table" and apiOrErr.Stop then
+            FarmAPI = apiOrErr
+        end
+        farmRunning = true
+        WindUI:Notify({ Title = "SHXDRAG HUB", Content = "Farm started!", Duration = 5, Icon = "geist:check-circle" })
+    end)
+end
+
+local function stopFarm()
+    if not farmRunning then
+        WindUI:Notify({ Title = "SHXDRAG HUB", Content = "Farm is not running.", Duration = 3, Icon = "geist:info" })
+        return
+    end
+    if FarmAPI and FarmAPI.Stop then
+        FarmAPI.Stop("STOP ALL FARM")
+    end
+    FarmAPI = nil
+    farmRunning = false
+    WindUI:Notify({ Title = "SHXDRAG HUB", Content = "Farm stopped.", Duration = 3, Icon = "geist:square" })
+end
+
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  CREATE WINDOW
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+local Window = WindUI:CreateWindow({
+    Title = "SHXDRAG HUB",
+    Icon = "geist:paw-print",
+    Author = "by Shxdrag",
+    Folder = "ShxdragHub",
+    KeySystem = false,
+    ThemeSystem = false,
+})
+
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  TABS
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+local TabMain     = Window:Tab({ Title = "Main",      Icon = "geist:home" })
+local TabFarm     = Window:Tab({ Title = "Farm",      Icon = "geist:leaf" })
+local TabNeeds    = Window:Tab({ Title = "Needs",     Icon = "geist:list-checks" })
+local TabEvent    = Window:Tab({ Title = "Halloween", Icon = "geist:ghost" })
+local TabPetPen   = Window:Tab({ Title = "Pet Pen",   Icon = "geist:fence" })
+local TabWebhook  = Window:Tab({ Title = "Webhook",   Icon = "geist:bell" })
+local TabInfo     = Window:Tab({ Title = "Info",      Icon = "geist:info" })
+
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  MAIN TAB
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+TabMain:Section({ Title = "Farm Control" })
+
+TabMain:Button({
+    Title = "Start Farm",
+    Desc = "Downloads and starts the AdoptMe Farm script",
+    Icon = "geist:play",
+    Callback = startFarm,
+})
+
+TabMain:Button({
+    Title = "Stop Farm",
+    Desc = "Stops the currently running farm",
+    Icon = "geist:square",
+    Callback = stopFarm,
+})
+
+TabMain:Section({ Title = "Utilities" })
+
+TabMain:Button({
+    Title = "Anti-AFK",
+    Desc = "Prevents idle kick (one-time enable)",
+    Icon = "geist:coffee",
+    Callback = function()
+        if getgenv().ShxdragAntiAFK then
+            WindUI:Notify({ Title = "Anti-AFK", Content = "Already enabled!", Duration = 3, Icon = "geist:info" })
+            return
+        end
+        local VirtualUser = game:GetService("VirtualUser")
+        local Players = game:GetService("Players")
+        local lp = Players.LocalPlayer
+        if getconnections then
+            for _, c in pairs(getconnections(lp.Idled)) do
+                if c.Disable then c:Disable() elseif c.Disconnect then c:Disconnect() end
+            end
+        else
+            lp.Idled:Connect(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new())
+            end)
+        end
+        getgenv().ShxdragAntiAFK = true
+        WindUI:Notify({ Title = "Anti-AFK", Content = "Enabled! You won't be kicked for idling.", Duration = 4, Icon = "geist:coffee" })
+    end,
+})
+
+TabMain:Section({ Title = "Credits" })
+
+TabMain:Toggle({
+    Title = "SHXDRAG HUB",
+    Desc = "UI by Shxdrag  â€¢  Farm by victimoffate_  â€¢  WindUI by Footagesus",
+    Value = false,
+    Locked = true,
+})
+
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  FARM TAB
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+TabFarm:Section({ Title = "Core" })
+
+TabFarm:Toggle({
+    Title = "Farm Enabled",
+    Desc = "Master switch â€” turn this on for any pet tasks to run",
+    Value = Settings.Farm.Enabled,
+    Callback = function(v) Settings.Farm.Enabled = v end,
+})
+
+TabFarm:Toggle({
+    Title = "Baby Mode",
+    Desc = "Joins the Babies team so baby pet needs can be done",
+    Value = Settings.Farm.BabyMode,
+    Callback = function(v) Settings.Farm.BabyMode = v end,
+})
+
+TabFarm:Toggle({
+    Title = "Keep Pet Equipped",
+    Desc = "Re-equips a growing pet if one gets unequipped",
+    Value = Settings.Farm.KeepPetEquipped,
+    Callback = function(v) Settings.Farm.KeepPetEquipped = v end,
+})
+
+TabFarm:Toggle({
+    Title = "Prefer Neon Pets",
+    Desc = "Farms neon pets before others",
+    Value = Settings.Farm.PreferNeon,
+    Callback = function(v) Settings.Farm.PreferNeon = v end,
+})
+
+TabFarm:Toggle({
+    Title = "Buy Food",
+    Desc = "Buys food when hungry with nothing in backpack",
+    Value = Settings.Farm.BuyFood,
+    Callback = function(v) Settings.Farm.BuyFood = v end,
+})
+
+TabFarm:Toggle({
+    Title = "Buy Water",
+    Desc = "Buys water when thirsty with nothing in backpack",
+    Value = Settings.Farm.BuyWater,
+    Callback = function(v) Settings.Farm.BuyWater = v end,
+})
+
+TabFarm:Toggle({
+    Title = "Collect Cashback",
+    Desc = "Collects cashback Bucks on a timer while farming",
+    Value = Settings.Farm.CollectCashback,
+    Callback = function(v) Settings.Farm.CollectCashback = v end,
+})
+
+TabFarm:Toggle({
+    Title = "Auto Accept Menu",
+    Desc = "Clicks Play on the main menu automatically",
+    Value = Settings.Farm.AutoAcceptMenu,
+    Callback = function(v) Settings.Farm.AutoAcceptMenu = v end,
+})
+
+TabFarm:Toggle({
+    Title = "Anti-AFK (Farm)",
+    Desc = "Prevents idle kick while farm is running",
+    Value = Settings.Farm.AntiAfk,
+    Callback = function(v) Settings.Farm.AntiAfk = v end,
+})
+
+TabFarm:Section({ Title = "Eggs" })
+
+TabFarm:Toggle({
+    Title = "Buy Egg",
+    Desc = "Buys an egg when no growing pet is left",
+    Value = Settings.Farm.BuyEgg,
+    Callback = function(v) Settings.Farm.BuyEgg = v end,
+})
+
+TabFarm:Dropdown({
+    Title = "Egg to Buy",
+    Desc = "Which egg to buy when none are left",
+    Values = { "cracked_egg", "pet_egg", "fairytale_egg_2026_fairytale_egg" },
+    Value = Settings.Farm.EggToBuy,
+    Callback = function(v) Settings.Farm.EggToBuy = v end,
+})
+
+TabFarm:Slider({
+    Title = "Max Egg Buys Per Session",
+    Desc = "0 = no limit",
+    Value = { Default = Settings.Farm.MaxEggBuysPerSession, Min = 0, Max = 50 },
+    Step = 1,
+    Callback = function(v) Settings.Farm.MaxEggBuysPerSession = v end,
+})
+
+TabFarm:Section({ Title = "Potions & Neon" })
+
+TabFarm:Toggle({
+    Title = "Auto Age Potions",
+    Desc = "Uses age potions from backpack on the growing pet",
+    Value = Settings.Farm.AutoPotions.Enabled,
+    Callback = function(v) Settings.Farm.AutoPotions.Enabled = v end,
+})
+
+TabFarm:Toggle({
+    Title = "Auto Neon",
+    Desc = "Fuses 4 full grown pets of one kind into a neon",
+    Value = Settings.Farm.AutoNeon.Enabled,
+    Callback = function(v) Settings.Farm.AutoNeon.Enabled = v end,
+})
+
+TabFarm:Toggle({
+    Title = "Auto Mega Neon",
+    Desc = "Fuses 4 neon pets into a mega neon",
+    Value = Settings.Farm.AutoNeon.Mega,
+    Callback = function(v) Settings.Farm.AutoNeon.Mega = v end,
+})
+
+TabFarm:Section({ Title = "Auto Open" })
+
+TabFarm:Toggle({
+    Title = "Auto Open Gifts & Chests",
+    Desc = "Opens gifts and chests sitting in your backpack",
+    Value = Settings.Farm.AutoOpen.Enabled,
+    Callback = function(v) Settings.Farm.AutoOpen.Enabled = v end,
+})
+
+TabFarm:Section({ Title = "Travel & Recovery" })
+
+TabFarm:Toggle({
+    Title = "Fast Travel",
+    Desc = "Teleports directly to task locations",
+    Value = Settings.Farm.GameTravel,
+    Callback = function(v) Settings.Farm.GameTravel = v end,
+})
+
+TabFarm:Toggle({
+    Title = "Home By Respawn",
+    Desc = "Goes home by respawning â€” much faster than walking",
+    Value = Settings.Farm.HomeByRespawn,
+    Callback = function(v) Settings.Farm.HomeByRespawn = v end,
+})
+
+TabFarm:Toggle({
+    Title = "Stuck Recovery",
+    Desc = "Respawns home if stuck and tasks keep failing",
+    Value = Settings.Farm.StuckRecovery.Enabled,
+    Callback = function(v) Settings.Farm.StuckRecovery.Enabled = v end,
+})
+
+TabFarm:Slider({
+    Title = "Stuck Recovery Seconds",
+    Desc = "How long before it counts as stuck",
+    Value = { Default = Settings.Farm.StuckRecovery.Seconds, Min = 60, Max = 600 },
+    Step = 10,
+    Callback = function(v) Settings.Farm.StuckRecovery.Seconds = v end,
+})
+
+TabFarm:Toggle({
+    Title = "Auto Rejoin",
+    Desc = "Rejoins a public server if no place or character",
+    Value = Settings.Farm.AutoRejoin,
+    Callback = function(v) Settings.Farm.AutoRejoin = v end,
+})
+
+TabFarm:Slider({
+    Title = "Disable Minutes After Failures",
+    Desc = "Rests this many minutes after 3 fails in a row (0 = whole session)",
+    Value = { Default = Settings.Farm.DisableMinutes, Min = 0, Max = 120 },
+    Step = 5,
+    Callback = function(v) Settings.Farm.DisableMinutes = v end,
+})
+
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  NEEDS TAB
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+TabNeeds:Section({ Title = "Auto Needs" })
+
+TabNeeds:Toggle({
+    Title = "Auto Needs Enabled",
+    Desc = "Does every pet need automatically",
+    Value = Settings.Farm.AutoNeeds.Enabled,
+    Callback = function(v) Settings.Farm.AutoNeeds.Enabled = v end,
+})
+
+TabNeeds:Section({ Title = "Individual Needs" })
+
+local needsList = {
+    { key = "pet_me",      label = "Pet Me" },
+    { key = "salon",       label = "Salon" },
+    { key = "bored",       label = "Bored (Playground)" },
+    { key = "cat_cafe",    label = "Cat Cafe" },
+    { key = "sleepy",      label = "Sleepy" },
+    { key = "dirty",       label = "Dirty (Bath)" },
+    { key = "toilet",      label = "Toilet" },
+    { key = "hungry",      label = "Hungry" },
+    { key = "thirsty",     label = "Thirsty" },
+    { key = "play",        label = "Play" },
+    { key = "pizza_party", label = "Pizza Party" },
+    { key = "school",      label = "School" },
+    { key = "sick",        label = "Sick (Doctor)" },
+    { key = "camping",     label = "Camping" },
+    { key = "beach_party", label = "Beach Party" },
+    { key = "mystery",     label = "Mystery" },
+    { key = "walk",        label = "Walk" },
+    { key = "ride",        label = "Ride (Stroller)" },
+}
+
+-- Build skip set from Settings for toggle state
+local skipSet = {}
+if type(Settings.Farm.AutoNeeds.Skip) == "table" then
+    for _, v in ipairs(Settings.Farm.AutoNeeds.Skip) do
+        skipSet[v] = true
+    end
+end
+
+local function updateSkip()
+    local skip = {}
+    for k, v in pairs(skipSet) do
+        if v then table.insert(skip, k) end
+    end
+    Settings.Farm.AutoNeeds.Skip = skip
+end
+
+for _, need in ipairs(needsList) do
+    TabNeeds:Toggle({
+        Title = need.label,
+        Desc = "Enable " .. need.label .. " need",
+        Value = not skipSet[need.key],
+        Callback = function(v)
+            skipSet[need.key] = not v
+            updateSkip()
+        end,
+    })
+end
+
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  HALLOWEEN TAB
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+TabEvent:Section({ Title = "Halloween 2026" })
+
+TabEvent:Toggle({
+    Title = "Ghost Gallery",
+    Desc = "Joins every round and vacuums ghosts (Rusty Keys + candy)",
+    Value = Settings.Farm.Event.GhostGallery,
+    Callback = function(v) Settings.Farm.Event.GhostGallery = v end,
+})
+
+TabEvent:Toggle({
+    Title = "Auto Hauntlet",
+    Desc = "Joins Hauntlet runs and picks safer doors",
+    Value = Settings.Farm.Event.Hauntlet,
+    Callback = function(v) Settings.Farm.Event.Hauntlet = v end,
+})
+
+TabEvent:Toggle({
+    Title = "Crypt (Rusty Keys)",
+    Desc = "Uses Rusty Keys on the grave leading down",
+    Value = Settings.Farm.Event.Crypt,
+    Callback = function(v) Settings.Farm.Event.Crypt = v end,
+})
+
+TabEvent:Toggle({
+    Title = "Pigeon Nest (Twigs)",
+    Desc = "Puts Crypt Twigs into the Hotel nest",
+    Value = Settings.Farm.Event.PigeonNest,
+    Callback = function(v) Settings.Farm.Event.PigeonNest = v end,
+})
+
+TabEvent:Toggle({
+    Title = "Stray Cat",
+    Desc = "Gives 1 water to the Stray Cat once a day (+50 candy)",
+    Value = Settings.Farm.Event.StrayCat,
+    Callback = function(v) Settings.Farm.Event.StrayCat = v end,
+})
+
+TabEvent:Toggle({
+    Title = "Daily Quests",
+    Desc = "Claims finished daily quests and Halloween board reward",
+    Value = Settings.Farm.Event.Quests,
+    Callback = function(v) Settings.Farm.Event.Quests = v end,
+})
+
+TabEvent:Toggle({
+    Title = "House Visits",
+    Desc = "Visits player homes for the Visit Homes quests",
+    Value = Settings.Farm.Event.HouseVisits,
+    Callback = function(v) Settings.Farm.Event.HouseVisits = v end,
+})
+
+TabEvent:Section({ Title = "Candy Pets" })
+
+TabEvent:Toggle({
+    Title = "Candy Pets",
+    Desc = "Saves candy to buy specific pets from the candy shop",
+    Value = Settings.Farm.Event.CandyPets.Enabled,
+    Callback = function(v) Settings.Farm.Event.CandyPets.Enabled = v end,
+})
+
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  PET PEN TAB
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+TabPetPen:Section({ Title = "Pet Pen" })
+
+TabPetPen:Toggle({
+    Title = "Auto Pet Pen",
+    Desc = "Claims the Pet Pen and keeps it full of growing pets",
+    Value = Settings.Farm.Event.PetPen,
+    Callback = function(v) Settings.Farm.Event.PetPen = v end,
+})
+
+TabPetPen:Toggle({
+    Title = "Auto Stock Pen",
+    Desc = "Buys eggs to keep the pen full (needs Buy Egg ON)",
+    Value = Settings.Farm.Event.PetPenStock,
+    Callback = function(v) Settings.Farm.Event.PetPenStock = v end,
+})
+
+TabPetPen:Slider({
+    Title = "Claim Every (Minutes)",
+    Desc = "How often the Pet Pen is claimed",
+    Value = { Default = Settings.Farm.Event.PetPenMinutes, Min = 1, Max = 60 },
+    Step = 1,
+    Callback = function(v) Settings.Farm.Event.PetPenMinutes = v end,
+})
+
+TabPetPen:Slider({
+    Title = "Pen Slots",
+    Desc = "4 free slots; 5 if you own the extra-slot gamepass",
+    Value = { Default = Settings.Farm.Event.PetPenSlots, Min = 1, Max = 5 },
+    Step = 1,
+    Callback = function(v) Settings.Farm.Event.PetPenSlots = v end,
+})
+
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  WEBHOOK TAB
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+TabWebhook:Section({ Title = "Discord Notifications" })
+
+TabWebhook:Toggle({
+    Title = "Notifications Enabled",
+    Desc = "Sends Discord webhook messages for farm events",
+    Value = Settings.Notifications.Enabled,
+    Callback = function(v) Settings.Notifications.Enabled = v end,
+})
+
+TabWebhook:Input({
+    Title = "Summary Webhook URL",
+    Desc = "Discord webhook for periodic summaries",
+    Value = Settings.Notifications.Webhooks.Summary,
+    Placeholder = "https://discord.com/api/webhooks/...",
+    Callback = function(v) Settings.Notifications.Webhooks.Summary = v end,
+})
+
+TabWebhook:Input({
+    Title = "Alerts Webhook URL",
+    Desc = "Discord webhook for errors and kicks",
+    Value = Settings.Notifications.Webhooks.Alerts,
+    Placeholder = "https://discord.com/api/webhooks/...",
+    Callback = function(v) Settings.Notifications.Webhooks.Alerts = v end,
+})
+
+TabWebhook:Input({
+    Title = "Discord User ID (for pings)",
+    Desc = "Your Discord user ID (digits only)",
+    Value = Settings.Notifications.PingDiscordUserId,
+    Placeholder = "123456789012345678",
+    Callback = function(v) Settings.Notifications.PingDiscordUserId = v end,
+})
+
+TabWebhook:Slider({
+    Title = "Summary Interval (Minutes)",
+    Desc = "How often a summary is sent (0 = off)",
+    Value = { Default = Settings.Notifications.SummaryIntervalMinutes, Min = 0, Max = 120 },
+    Step = 5,
+    Callback = function(v) Settings.Notifications.SummaryIntervalMinutes = v end,
+})
+
+TabWebhook:Section({ Title = "Events to Send" })
+
+TabWebhook:Toggle({
+    Title = "Send on Start / Stop",
+    Value = Settings.Notifications.SendOnStartStop,
+    Callback = function(v) Settings.Notifications.SendOnStartStop = v end,
+})
+
+TabWebhook:Toggle({
+    Title = "Send on Error",
+    Value = Settings.Notifications.SendOnError,
+    Callback = function(v) Settings.Notifications.SendOnError = v end,
+})
+
+TabWebhook:Toggle({
+    Title = "Send on Kick",
+    Value = Settings.Notifications.SendOnKick,
+    Callback = function(v) Settings.Notifications.SendOnKick = v end,
+})
+
+TabWebhook:Toggle({
+    Title = "Send on Task Complete",
+    Desc = "One message per finished need â€” sends a lot",
+    Value = Settings.Notifications.SendOnTaskComplete,
+    Callback = function(v) Settings.Notifications.SendOnTaskComplete = v end,
+})
+
+TabWebhook:Toggle({
+    Title = "Include Username",
+    Desc = "Includes your Roblox username in messages",
+    Value = Settings.Notifications.IncludeUsername,
+    Callback = function(v) Settings.Notifications.IncludeUsername = v end,
+})
+
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  INFO TAB
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+TabInfo:Section({ Title = "About" })
+
+TabInfo:Paragraph({
+    Title = "SHXDRAG HUB",
+    Desc = "AdoptMe Farm loader with WindUI interface.\nCredits: Shxdrag (hub)  â€¢  victimoffate_ (farm)  â€¢  Footagesus (WindUI)",
+})
+
+TabInfo:Section({ Title = "How to Use" })
+
+TabInfo:Paragraph({
+    Title = "Instructions",
+    Desc = "1. Configure your settings in the Farm, Needs, Halloween, and Pet Pen tabs.\n2. Press Start Farm in the Main tab.\n3. The farm script will download and run using your settings.\n4. Press Stop Farm to stop at any time.",
+})
+
+TabInfo:Section({ Title = "Safety" })
+
+TabInfo:Paragraph({
+    Title = "Telemetry",
+    Desc = "Telemetry is DISABLED in this loader. No inventory data is sent to the farm developer.",
+})
+
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+--  READY
+-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+WindUI:Notify({
+    Title = "SHXDRAG HUB",
+    Content = "Loaded! Configure settings then press Start Farm.",
+    Duration = 6,
+    Icon = "geist:check-circle",
+})
