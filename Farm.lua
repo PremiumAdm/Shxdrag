@@ -310,14 +310,14 @@ local TabConfigs = Window:Tab({ Title = "Configs",   Icon = "settings" })
 TabMain:Section({ Title = "Farm Control" })
 
 TabMain:Button({
-    Title    = "â–¶  Start Farm",
+    Title    = "▶️  Start Farm",
     Desc     = "Downloads and starts the AdoptMe Farm script with your settings",
     Icon     = "play",
     Callback = startFarm,
 })
 
 TabMain:Button({
-    Title    = "â–   Stop Farm",
+    Title    = "⏸️ Stop Farm",
     Desc     = "Stops the currently running farm",
     Icon     = "square",
     Callback = stopFarm,
