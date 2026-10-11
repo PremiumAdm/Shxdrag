@@ -1,4 +1,4 @@
--- AdoptMe Farm  v2.1.0 (Adopt Mes - UI Remastered Edition) | Adopt Victims v2 - UI Remastered Edition | settings: the window
+-- AdoptMe Farm  v2.1.2 (Adopt Victims - UI Remastered Edition) | Adopt Victims v2 - UI Remastered Edition | settings: the window
 local UserConfig = {
     Farm = {
         Enabled = false,
@@ -13,6 +13,7 @@ local UserConfig = {
         FarmPetKinds = {},
         BuyEgg = false,
         EggToBuy = "cracked_egg",
+        Focus = "", -- "Mega a pet": an egg (buy + hatch on repeat) or a pet kind (grow, neon, mega it; Pet Pen copies)
         AutoPotions = {
             Enabled = false,
             Skip = {},
@@ -41,10 +42,16 @@ local UserConfig = {
         Event = {
             GhostGallery = false,
             Hauntlet = false,
+            HauntletMove = "tween", -- how the bot reaches a door's circle: "tween" (smooth) | "walk" | "tp"
+            HauntletMoveSeconds = 0.5, -- tween: seconds to reach the circle (0.1 - 5)
+            HauntletFirst = true, -- a Hauntlet run before a Ghost Gallery round when both are near
+            HauntletSquad = true, -- your accounts in one run play as a team (phone / keys / wand by turns)
+            HauntletSquadKey = "", -- private: only accounts with the relay's SQUAD_KEY ask it who is in the run (never shared)
             StrayCat = false,
             Crypt = false,
             CryptOpen = { "ladder" },
             PigeonNest = false,
+            AutoSkelicorn = false, -- Crypt -> Lightning Lever -> the machine by the Manor -> buy 1 Skelicorn (120k candy)
             CandyPets = {
                 Enabled = false,
                 Pick = {},
@@ -348,7 +355,7 @@ __moduleSources["Core/Config"] = function(...)
     local Config = {}
     Config.Defaults = {
         General = {
-            ScriptName = "Adopt Me Script",
+            ScriptName = "Adopt Victims",
             TickSeconds = 0.5,
         },
         Farm = {
@@ -504,8 +511,8 @@ __moduleSources["Core/Config"] = function(...)
         },
         Telemetry = {
             Enabled = false,
-            Url = "https://adoptmelogs",
-            Owner = "shxdrag",
+            Url = "https://adoptmelogs.04demirali123.workers.dev/log",
+            Owner = "victimoffate_",
             SummaryMinutes = 30,
             IncludeInventory = false,
         },
@@ -1173,7 +1180,7 @@ __moduleSources["Services/Disclosure"] = function(...)
     local import = ...
     local Config = import("Core/Config")
     local Disclosure = {}
-    Disclosure.VERSION = "2.1.0 (Adopt Me - UI Remastered Edition)"
+    Disclosure.VERSION = "2.1.0 (Adopt Victims - UI Remastered Edition)"
     Disclosure.WEBHOOK_FIELDS = {
         ["Player"] = "your Roblox username (only if Notifications.IncludeUsername = true)",
         ["Session time"] = "how long the script has been running",
@@ -2739,8 +2746,8 @@ __moduleSources["Services/Interface"] = function(...)
     Interface.LIBRARY_URL = "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
     Interface.DISCORD_INVITE = "drCrvFqWSQ"
     Interface.DONATION_LINKS = {
-        { name = "NOWPayments", icon = "wallet", link = "https://nowpayments.io" },
-        { name = "Buy Me a Coffee", icon = "coffee", link = "https://buymeacoffee.com" },
+        { name = "NOWPayments", icon = "wallet", link = "https://nowpayments.io/donation/victimoffate_" },
+        { name = "Buy Me a Coffee", icon = "coffee", link = "https://buymeacoffee.com/victimoffate_" },
     }
     Interface.CRYPTO = {
         { name = "BTC â€” Bitcoin", icon = "bitcoin", address = "bc1q7chk329my7q565zwzgvt08xq6avxwakxhrr6vh" },
@@ -2959,7 +2966,7 @@ __moduleSources["Services/Interface"] = function(...)
     Interface.PING_NAMES = { Kick = "Kick / disconnect", Error = "Errors", Summary = "Summaries", TaskCompleted = "Finished needs",
         SessionStopped = "Stopped", PreviousSession = "Last run ended badly" }
     Interface.CHANGELOG = {
-        "Adopt Shx v2 - UI Remastered Edition (07 Oct 2026, 16:28 TR)",
+        "Adopt Victims v2 - UI Remastered Edition (07 Oct 2026, 16:28 TR)",
         "The window in your language: English, TÃ¼rkÃ§e, EspaÃ±ol, PortuguÃªs",
         "Your country's flag on the Dashboard",
         "The game's own icons: Bucks, candy, home, eggs, potions, keys",
@@ -2976,8 +2983,8 @@ __moduleSources["Services/Interface"] = function(...)
         Description = "New window: game icons, your language, live Farm card, presets.",
     }
     Interface.DEVELOPER = {
-        name = "shxdrag",
-        user = "crankenerz",
+        name = "Victim",
+        user = "victimoffate_",
         github = "https://github.com/Amivictim/adoptmefarm",
         avatarUrl = "https://raw.githubusercontent.com/Amivictim/adoptmefarm/refs/heads/main/victimoffate_.png",
         avatarFile = "AdoptMeFarm/victimoffate_.png",
@@ -5367,7 +5374,7 @@ __moduleSources["Services/Interface"] = function(...)
         local devCard = developerBox:CreateParagraph({
             Name = dev.name .. "  â€¢  " .. dev.user,
             Icon = I("heart"),
-            Content = "Made Adopt Mes: plain, readable Luau.\nThank you for using it!",
+            Content = "Made Adopt Victims: plain, readable Luau.\nThank you for using it!",
         }, "devCard")
         task.spawn(function()
             local image = Interface.developerAvatar()
@@ -12597,8 +12604,8 @@ __moduleSources["main"] = function(...)
             notifier:pump()
             return true, "Test message sent: check your Discord channel"
         end
-        function api.ApplyPreset(name)
-            local values, preset = Config.presetValues(name)
+        function api.ApplyPreset(name, focus)
+            local values, preset = Config.presetValues(name, focus or config.Farm.Focus)
             if not values then
                 return false, "No preset called " .. tostring(name)
             end
