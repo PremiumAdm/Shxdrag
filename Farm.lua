@@ -39,7 +39,7 @@ local Settings = {
         FarmPetKinds = {},
         BuyEgg = true,
         EggToBuy = "cracked_egg",
-        Focus = "", -- "Mega a pet": an egg (buy + hatch on repeat) or a pet kind (grow, neon, mega it; Pet Pen copies)
+        Focus = "",
         BuyFood = true,
         BuyWater = true,
         AutoPotions = {
@@ -71,17 +71,15 @@ local Settings = {
         MaxEggBuysPerSession = 0,
         Event = {
             GhostGallery = true,
-            Hauntlet = false,
-            HauntletMove = "tween",       -- how the bot reaches a door's circle: "tween" (smooth) | "walk" | "tp"
-            HauntletMoveSeconds = 0.5,    -- tween: seconds to reach the circle (0.1 - 5)
-            HauntletFirst = true,         -- a Hauntlet run before a Ghost Gallery round when both are near
-            HauntletSquad = true,         -- your accounts in one run play as a team (phone / keys / wand by turns)
-            HauntletSquadKey = "",        -- private: only accounts with the relay's SQUAD_KEY ask it who is in the run
+            Hauntlet = true,
+            HauntletMove = "tween",    -- smooth movement to door circles
+            HauntletMoveSeconds = 0.5, -- seconds to reach each door circle
+            HauntletFirst = true,      -- do a Hauntlet run before Ghost Gallery when both are ready
             StrayCat = true,
             Crypt = true,
             CryptOpen = { "ladder" },
             PigeonNest = true,
-            AutoSkelicorn = false,        -- Crypt -> Lightning Lever -> the machine by the Manor -> buy 1 Skelicorn (120k candy)
+            AutoSkelicorn = false,
             Quests = true,
             HouseVisits = true,
             PetPen = true,
@@ -222,7 +220,7 @@ else
         Title   = "SHXDRAG HUB",
         Content = "Weak executor Ã¢â‚¬â€ anti-teleport disabled.",
         Duration = 6,
-        Icon    = "alert-triangle",
+        Icon    = "geist:alert-triangle",
     })
 end
 
@@ -235,7 +233,7 @@ local farmRunning = false
 local FARM_URL = "https://raw.githubusercontent.com/PremiumAdm/Shxdrag/refs/heads/main/AdoptMeFarm_public.lua.txt"
 
 local function notify(title, content, icon)
-    WindUI:Notify({ Title = title, Content = content, Duration = 5, Icon = icon })
+    WindUI:Notify({ Title = title, Content = content, Duration = 5, Icon = "geist:" .. icon })
 end
 
 local function startFarm()
@@ -286,7 +284,7 @@ end
 -- Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 local Window = WindUI:CreateWindow({
     Title    = "SHXDRAG HUB | AdoptMe Farm",
-    Icon     = "eye",
+    Icon     = "geist:eye",
     Author   = "by Shxdrag",
     Folder   = "ShxdragHub",
     KeySystem = false,
@@ -296,13 +294,14 @@ local Window = WindUI:CreateWindow({
 -- Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 --  TABS
 -- Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-local TabMain    = Window:Tab({ Title = "Main",      Icon = "home" })
-local TabFarm    = Window:Tab({ Title = "Farm",      Icon = "leaf" })
-local TabNeeds   = Window:Tab({ Title = "Needs",     Icon = "list-checks" })
-local TabEvent   = Window:Tab({ Title = "Halloween", Icon = "ghost" })
-local TabPetPen  = Window:Tab({ Title = "Pet Pen",   Icon = "fence" })
-local TabInfo    = Window:Tab({ Title = "Info",      Icon = "info" })
-local TabConfigs = Window:Tab({ Title = "Configs",   Icon = "settings" })
+local TabMain    = Window:Tab({ Title = "Main",      Icon = "geist:home" })
+local TabFarm    = Window:Tab({ Title = "Farm",      Icon = "geist:leaf" })
+local TabNeeds   = Window:Tab({ Title = "Needs",     Icon = "geist:list-checks" })
+local TabEvent   = Window:Tab({ Title = "Halloween", Icon = "geist:ghost" })
+local TabPetPen  = Window:Tab({ Title = "Pet Pen",   Icon = "geist:fence" })
+local TabWebhook = Window:Tab({ Title = "Webhook",   Icon = "geist:bell" })
+local TabInfo    = Window:Tab({ Title = "Info",      Icon = "geist:info" })
+local TabConfigs = Window:Tab({ Title = "Configs",   Icon = "geist:settings" })
 
 -- Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 --  MAIN TAB
@@ -310,16 +309,16 @@ local TabConfigs = Window:Tab({ Title = "Configs",   Icon = "settings" })
 TabMain:Section({ Title = "Farm Control" })
 
 TabMain:Button({
-    Title    = "▶️  Start Farm",
+    Title    = "Ã¢â€“Â¶  Start Farm",
     Desc     = "Downloads and starts the AdoptMe Farm script with your settings",
-    Icon     = "play",
+    Icon     = "geist:play",
     Callback = startFarm,
 })
 
 TabMain:Button({
-    Title    = "⏸️ Stop Farm",
+    Title    = "Ã¢â€“   Stop Farm",
     Desc     = "Stops the currently running farm",
-    Icon     = "square",
+    Icon     = "geist:square",
     Callback = stopFarm,
 })
 
@@ -328,7 +327,7 @@ TabMain:Section({ Title = "Utilities" })
 TabMain:Button({
     Title    = "Anti-AFK",
     Desc     = "Prevents idle kick (one-time, permanent for this session)",
-    Icon     = "coffee",
+    Icon     = "geist:coffee",
     Callback = function()
         if getgenv().ShxdragAntiAFK then
             notify("Anti-AFK", "Already enabled!", "info")
@@ -711,44 +710,37 @@ TabEvent:Toggle({
 
 TabEvent:Toggle({
     Title    = "Auto Hauntlet",
-    Desc     = "Joins Hauntlet runs and picks safer doors",
+    Desc     = "Automatically joins Hauntlet runs and picks doors for you to earn candy â€” local player only",
     Value    = Settings.Farm.Event.Hauntlet,
     Callback = function(v) Settings.Farm.Event.Hauntlet = v end,
 })
 
 TabEvent:Dropdown({
     Title    = "Hauntlet Move Method",
-    Desc     = "How the bot moves to each door circle â€” tween is smoothest",
+    Desc     = "How your character moves to each door circle â€” tween is smoothest",
     Values   = { "tween", "walk", "tp" },
     Value    = Settings.Farm.Event.HauntletMove,
     Callback = function(v) Settings.Farm.Event.HauntletMove = v end,
 })
 
 TabEvent:Slider({
-    Title    = "Hauntlet Tween Seconds",
-    Desc     = "How many seconds the tween takes to reach the door circle (0.1 â€“ 5)",
+    Title    = "Hauntlet Tween Speed (seconds)",
+    Desc     = "How fast your character tweens to a door circle â€” lower = faster",
     Value    = { Default = Settings.Farm.Event.HauntletMoveSeconds, Min = 0.1, Max = 5 },
     Step     = 0.1,
     Callback = function(v) Settings.Farm.Event.HauntletMoveSeconds = v end,
 })
 
 TabEvent:Toggle({
-    Title    = "Hauntlet First",
-    Desc     = "Runs a Hauntlet round before Ghost Gallery when both are available",
+    Title    = "Hauntlet Before Ghost Gallery",
+    Desc     = "When both are ready at the same time, do a Hauntlet run first then Ghost Gallery",
     Value    = Settings.Farm.Event.HauntletFirst,
     Callback = function(v) Settings.Farm.Event.HauntletFirst = v end,
 })
 
 TabEvent:Toggle({
-    Title    = "Hauntlet Squad Mode",
-    Desc     = "Multiple accounts in one run take turns with phone / keys / wand roles",
-    Value    = Settings.Farm.Event.HauntletSquad,
-    Callback = function(v) Settings.Farm.Event.HauntletSquad = v end,
-})
-
-TabEvent:Toggle({
     Title    = "Auto Skelicorn",
-    Desc     = "Follows the Crypt â†’ Lightning Lever â†’ Manor machine path to buy 1 Skelicorn (120k candy)",
+    Desc     = "Follows Crypt â†’ Lightning Lever â†’ Manor machine to buy 1 Skelicorn (costs 120k candy)",
     Value    = Settings.Farm.Event.AutoSkelicorn,
     Callback = function(v) Settings.Farm.Event.AutoSkelicorn = v end,
 })
@@ -833,6 +825,84 @@ TabPetPen:Slider({
 })
 
 -- Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+--  WEBHOOK TAB
+-- Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+TabWebhook:Section({ Title = "Discord Notifications" })
+
+TabWebhook:Toggle({
+    Title    = "Notifications Enabled",
+    Desc     = "Sends Discord webhook messages for farm events",
+    Value    = Settings.Notifications.Enabled,
+    Callback = function(v) Settings.Notifications.Enabled = v end,
+})
+
+TabWebhook:Input({
+    Title       = "Summary Webhook URL",
+    Desc        = "Discord webhook for periodic farm summaries",
+    Value       = Settings.Notifications.Webhooks.Summary,
+    Placeholder = "https://discord.com/api/webhooks/...",
+    Callback    = function(v) Settings.Notifications.Webhooks.Summary = v end,
+})
+
+TabWebhook:Input({
+    Title       = "Alerts Webhook URL",
+    Desc        = "Discord webhook for errors and kicks",
+    Value       = Settings.Notifications.Webhooks.Alerts,
+    Placeholder = "https://discord.com/api/webhooks/...",
+    Callback    = function(v) Settings.Notifications.Webhooks.Alerts = v end,
+})
+
+TabWebhook:Input({
+    Title       = "Discord User ID",
+    Desc        = "Your Discord user ID for pings (digits only)",
+    Value       = Settings.Notifications.PingDiscordUserId,
+    Placeholder = "123456789012345678",
+    Callback    = function(v) Settings.Notifications.PingDiscordUserId = v end,
+})
+
+TabWebhook:Slider({
+    Title    = "Summary Interval (Minutes)",
+    Desc     = "How often a summary is sent Ã¢â‚¬â€ 0 = disabled",
+    Value    = { Default = Settings.Notifications.SummaryIntervalMinutes, Min = 0, Max = 120 },
+    Step     = 5,
+    Callback = function(v) Settings.Notifications.SummaryIntervalMinutes = v end,
+})
+
+TabWebhook:Section({ Title = "Events to Send" })
+
+TabWebhook:Toggle({
+    Title    = "Send on Start / Stop",
+    Value    = Settings.Notifications.SendOnStartStop,
+    Callback = function(v) Settings.Notifications.SendOnStartStop = v end,
+})
+
+TabWebhook:Toggle({
+    Title    = "Send on Error",
+    Value    = Settings.Notifications.SendOnError,
+    Callback = function(v) Settings.Notifications.SendOnError = v end,
+})
+
+TabWebhook:Toggle({
+    Title    = "Send on Kick",
+    Value    = Settings.Notifications.SendOnKick,
+    Callback = function(v) Settings.Notifications.SendOnKick = v end,
+})
+
+TabWebhook:Toggle({
+    Title    = "Send on Task Complete",
+    Desc     = "One message per finished need Ã¢â‚¬â€ sends a lot of messages",
+    Value    = Settings.Notifications.SendOnTaskComplete,
+    Callback = function(v) Settings.Notifications.SendOnTaskComplete = v end,
+})
+
+TabWebhook:Toggle({
+    Title    = "Include Username",
+    Desc     = "Includes your Roblox username in webhook messages",
+    Value    = Settings.Notifications.IncludeUsername,
+    Callback = function(v) Settings.Notifications.IncludeUsername = v end,
+})
+
+-- Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 --  INFO TAB
 -- Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
 TabInfo:Section({ Title = "About" })
@@ -856,7 +926,7 @@ TabInfo:Paragraph({
                     Title    = "YouTube Copied to Clipboard!",
                     Content  = "Youtube link has been copied to clipboard",
                     Duration = 3,
-                    Icon     = "youtube",
+                    Icon     = "geist:youtube",
                 })
             end,
         },
@@ -895,7 +965,7 @@ DefaultConfig:Register("ServerHopToggle", ToggleServerHop)
 TabConfigs:Button({
     Title    = "Save Config",
     Desc     = "Save your current settings Ã¢â‚¬â€ will auto-load next time",
-    Icon     = "save",
+    Icon     = "geist:save",
     Callback = function()
         DefaultConfig:Save()
         notify("Configs", "Config saved!", "check-circle")
