@@ -1,4 +1,4 @@
--- AdoptMe Farm  v2.1.0 (Adopt Victims - UI Remastered Edition) | Adopt Victims v2 - UI Remastered Edition | settings: the window
+-- AdoptMe Farm  v2.1.0 (Adopt Mes - UI Remastered Edition) | Adopt Victims v2 - UI Remastered Edition | settings: the window
 local UserConfig = {
     Farm = {
         Enabled = false,
@@ -25,7 +25,7 @@ local UserConfig = {
         AutoOpen = {
             Enabled = false,
         },
-        AutoAcceptMenu = false,
+        AutoAcceptMenu = true,
         AntiAfk = true,
         CameraGuard = true,
         AutoRejoin = false,
@@ -348,7 +348,7 @@ __moduleSources["Core/Config"] = function(...)
     local Config = {}
     Config.Defaults = {
         General = {
-            ScriptName = "Adopt Victims",
+            ScriptName = "Adopt Me Script",
             TickSeconds = 0.5,
         },
         Farm = {
@@ -504,8 +504,8 @@ __moduleSources["Core/Config"] = function(...)
         },
         Telemetry = {
             Enabled = false,
-            Url = "https://adoptmelogs.04demirali123.workers.dev/log",
-            Owner = "victimoffate_",
+            Url = "https://adoptmelogs",
+            Owner = "shxdrag",
             SummaryMinutes = 30,
             IncludeInventory = false,
         },
@@ -1173,7 +1173,7 @@ __moduleSources["Services/Disclosure"] = function(...)
     local import = ...
     local Config = import("Core/Config")
     local Disclosure = {}
-    Disclosure.VERSION = "2.1.0 (Adopt Victims - UI Remastered Edition)"
+    Disclosure.VERSION = "2.1.0 (Adopt Me - UI Remastered Edition)"
     Disclosure.WEBHOOK_FIELDS = {
         ["Player"] = "your Roblox username (only if Notifications.IncludeUsername = true)",
         ["Session time"] = "how long the script has been running",
@@ -2739,8 +2739,8 @@ __moduleSources["Services/Interface"] = function(...)
     Interface.LIBRARY_URL = "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
     Interface.DISCORD_INVITE = "drCrvFqWSQ"
     Interface.DONATION_LINKS = {
-        { name = "NOWPayments", icon = "wallet", link = "https://nowpayments.io/donation/victimoffate_" },
-        { name = "Buy Me a Coffee", icon = "coffee", link = "https://buymeacoffee.com/victimoffate_" },
+        { name = "NOWPayments", icon = "wallet", link = "https://nowpayments.io" },
+        { name = "Buy Me a Coffee", icon = "coffee", link = "https://buymeacoffee.com" },
     }
     Interface.CRYPTO = {
         { name = "BTC â€” Bitcoin", icon = "bitcoin", address = "bc1q7chk329my7q565zwzgvt08xq6avxwakxhrr6vh" },
@@ -2959,7 +2959,7 @@ __moduleSources["Services/Interface"] = function(...)
     Interface.PING_NAMES = { Kick = "Kick / disconnect", Error = "Errors", Summary = "Summaries", TaskCompleted = "Finished needs",
         SessionStopped = "Stopped", PreviousSession = "Last run ended badly" }
     Interface.CHANGELOG = {
-        "Adopt Victims v2 - UI Remastered Edition (07 Oct 2026, 16:28 TR)",
+        "Adopt Shx v2 - UI Remastered Edition (07 Oct 2026, 16:28 TR)",
         "The window in your language: English, TÃ¼rkÃ§e, EspaÃ±ol, PortuguÃªs",
         "Your country's flag on the Dashboard",
         "The game's own icons: Bucks, candy, home, eggs, potions, keys",
@@ -2976,8 +2976,8 @@ __moduleSources["Services/Interface"] = function(...)
         Description = "New window: game icons, your language, live Farm card, presets.",
     }
     Interface.DEVELOPER = {
-        name = "Victim",
-        user = "victimoffate_",
+        name = "shxdrag",
+        user = "crankenerz",
         github = "https://github.com/Amivictim/adoptmefarm",
         avatarUrl = "https://raw.githubusercontent.com/Amivictim/adoptmefarm/refs/heads/main/victimoffate_.png",
         avatarFile = "AdoptMeFarm/victimoffate_.png",
@@ -5367,7 +5367,7 @@ __moduleSources["Services/Interface"] = function(...)
         local devCard = developerBox:CreateParagraph({
             Name = dev.name .. "  â€¢  " .. dev.user,
             Icon = I("heart"),
-            Content = "Made Adopt Victims: plain, readable Luau.\nThank you for using it!",
+            Content = "Made Adopt Mes: plain, readable Luau.\nThank you for using it!",
         }, "devCard")
         task.spawn(function()
             local image = Interface.developerAvatar()
