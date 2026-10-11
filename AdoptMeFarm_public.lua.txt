@@ -412,7 +412,7 @@ __moduleSources["Core/Config"] = function(...)
                 cat_cafe = 35,
                 bored = 30,
             },
-            AutoAcceptMenu = true,
+            AutoAcceptMenu = false,
             AntiAfk = true,
             CameraGuard = true,
             CollectCashback = false,
