@@ -1,8 +1,8 @@
 -- AdoptMe Farm  v2.1.2 (Adopt Victims - UI Remastered Edition) | Adopt Victims v2 - UI Remastered Edition | settings: the window
 local UserConfig = {
     Farm = {
-        Enabled = false,
-        BabyMode = false,
+        Enabled = true,
+        BabyMode = true,
         AutoNeeds = {
             Enabled = false,
             Skip = {},
