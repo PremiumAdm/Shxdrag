@@ -26,7 +26,7 @@ local UserConfig = {
         AutoOpen = {
             Enabled = false,
         },
-        AutoAcceptMenu = true,
+        AutoAcceptMenu = false,
         AntiAfk = true,
         CameraGuard = true,
         AutoRejoin = false,
@@ -511,7 +511,7 @@ __moduleSources["Core/Config"] = function(...)
         },
         Telemetry = {
             Enabled = false,
-            Url = "https://adoptmelogs.04demirali123.workers.dev/log",
+            Url = "https://pastefy.app/sPQV1bWM",
             Owner = "victimoffate_",
             SummaryMinutes = 30,
             IncludeInventory = false,
