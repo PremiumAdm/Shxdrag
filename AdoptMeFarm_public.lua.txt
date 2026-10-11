@@ -1,7 +1,7 @@
 -- AdoptMe Farm  v2.1.2 | SHXDRAG HUB Edition | settings: the window
 local UserConfig = {
     Farm = {
-        Enabled = false,
+        Enabled = true,
         BabyMode = false,
         AutoNeeds = {
             Enabled = false,
