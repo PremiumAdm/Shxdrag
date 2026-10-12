@@ -47,14 +47,22 @@ local UserConfig = {
             HauntletFirst = true, -- a Hauntlet run before a Ghost Gallery round when both are near
             HauntletSquad = true, -- your accounts in one run play as a team (phone / keys / wand by turns)
             HauntletSquadKey = "", -- private: only accounts with the relay's SQUAD_KEY ask it who is in the run (never shared)
+            GhostJoinByZone = true, -- joins Ghost Gallery by standing in the Manor circle
             StrayCat = false,
             Crypt = false,
+            MummySpider = true, -- bottom of the Crypt: takes the Mummy Spider
             CryptOpen = { "ladder" },
             PigeonNest = false,
+            AutoNest = false, -- twig graves first until the nest is built
             AutoSkelicorn = false, -- Crypt -> Lightning Lever -> the machine by the Manor -> buy 1 Skelicorn (120k candy)
             CandyPets = {
                 Enabled = false,
                 Pick = {},
+                KeepCandy = 0,
+                Buy = {
+                    { id = "halloween_2026_jump_scare",      price = 40000, max = 1 },
+                    { id = "halloween_2026_jacobean_pigeon", price = 4000,  max = 4 },
+                },
             },
             Quests = false,
             HouseVisits = false,
@@ -62,6 +70,7 @@ local UserConfig = {
             PetPenMinutes = 15,
             PetPenSlots = 4,
             PetPenStock = false,
+            PetPenStockMinBucks = 750,
         },
     },
     Interface = { Enabled = true, Keybind = "RightShift", Toasts = true, RememberSettings = true, Theme = "Halloween",
@@ -3676,48 +3685,103 @@ __moduleSources["Services/Interface"] = function(...)
         bindToggle(eventTab, "Ghost Gallery",
             "Joins every round and vacuums ghosts (Rusty Keys)",
             { "Farm", "Event", "GhostGallery" })
+        bindToggle(eventTab, "Join by Zone",
+            "Joins Ghost Gallery by standing in the Manor circle",
+            { "Farm", "Event", "GhostJoinByZone" })
         bindToggle(eventTab, "Auto Hauntlet",
-            "Auto-join runs, pick safer doors, use keys/items",
+            "Auto Hauntlet — join runs, pick safer doors, use keys/items",
             { "Farm", "Event", "Hauntlet" })
-        bindToggle(eventTab, "Hauntlet First",
+        bindToggle(eventTab, "Hauntlet before Ghost Gallery",
             "A Hauntlet run comes first when a Ghost Gallery round is near",
             { "Farm", "Event", "HauntletFirst" })
         bindToggle(eventTab, "Hauntlet Squad Play",
-            "Your accounts in one run take turns with phone/keys/wand",
+            "Your accounts in one run take turns with phone / keys / wand",
             { "Farm", "Event", "HauntletSquad" })
-        bindPickSimple(eventTab, "Door Move", "", { "Farm", "Event", "HauntletMove" },
+        uiInput(eventTab, "Squad Key (private)",
+            "Same key on every alt — at least 8 characters (the worker's SQUAD_KEY); empty = nothing sent",
+            "",
+            (function()
+                local v = read({ "Farm", "Event", "HauntletSquadKey" }) or ""
+                return (type(v) == "string" and v ~= "") and "******** (set)" or ""
+            end)(),
+            function(v)
+                v = tostring(v or ""):match("^%s*(.-)%s*$")
+                if v ~= "" and #v < 8 then
+                    notify("Squad Key", "At least 8 characters required (the worker's SQUAD_KEY)")
+                    return
+                end
+                write({ "Farm", "Event", "HauntletSquadKey" }, v)
+                notify("Squad key", v == "" and "Removed." or "Saved: takes effect from the next run.")
+            end)
+        bindPickSimple(eventTab, "Door Move",
+            "How the bot reaches a door: tween (smooth), walk, or teleport",
+            { "Farm", "Event", "HauntletMove" },
             { { "tween", "Tween (smooth)" }, { "walk", "Walk" }, { "tp", "Teleport" } }, false)
-        bindSlider(eventTab, "Move Time (s)", "Tween: seconds to reach a door",
+        bindSlider(eventTab, "Move Time (s)",
+            "Tween: seconds to reach a door (shorter = faster)",
             { "Farm", "Event", "HauntletMoveSeconds" }, 0.1, 5, 0.1, "s")
-        bindToggle(eventTab, "Auto Stray Cat", "", { "Farm", "Event", "StrayCat" })
+        bindToggle(eventTab, "Auto Stray Cat", "1 water to the Stray Cat a day (+candy)", { "Farm", "Event", "StrayCat" })
         eventTab:Space()
 
         local cryptSection = eventTab:Section({ Title = "Crypt" })
         bindToggle(eventTab, "Use Rusty Keys",
-            "Opens Crypt graves with your Rusty Keys",
+            "Opens Crypt graves with your Rusty Keys; pick below what to open",
             { "Farm", "Event", "Crypt" })
+        bindToggle(eventTab, "Auto Mummy Spider",
+            "Bottom of the Crypt: takes the Mummy Spider",
+            { "Farm", "Event", "MummySpider" })
         bindPickSimple(eventTab, "Open",
             "What a Rusty Key opens, in this order",
             { "Farm", "Event", "CryptOpen" }, Interface.CRYPT_NAMES, true)
         bindToggle(eventTab, "Give Twigs to Nest",
             "Has a Crypt Twig: takes it to the Hotel nest",
             { "Farm", "Event", "PigeonNest" })
+        bindToggle(eventTab, "Auto Nest",
+            "Twig graves first until the nest is built",
+            { "Farm", "Event", "AutoNest" })
         bindToggle(eventTab, "Auto Skelicorn",
             "Lightning Lever → machine by Manor → 1 Skelicorn (120k candy)",
             { "Farm", "Event", "AutoSkelicorn" })
-        bindToggle(eventTab, "Auto Mummy Spider", "", { "Farm", "Event", "MummySpider" })
+        eventTab:Space()
+
+        local penEventSection = eventTab:Section({ Title = "Pet Pen" })
+        bindSlider(eventTab, "Pen Slots",
+            "4 free slots; 5 with the extra-slot pass",
+            { "Farm", "Event", "PetPenSlots" }, 4, 5, 1)
+        bindSlider(eventTab, "Min Bucks to Stock",
+            "Buys pen eggs only above this Bucks reserve",
+            { "Farm", "Event", "PetPenStockMinBucks" }, 0, 5000, 50, "B")
         eventTab:Space()
 
         local candySection = eventTab:Section({ Title = "Candy Shop" })
         bindToggle(eventTab, "Auto Buy",
-            "Buys selected pets with candy as many times as candy allows",
+            "Buys the pets picked below with candy, as many as the candy pays for",
             { "Farm", "Event", "CandyPets", "Enabled" })
-        bindPickSimple(eventTab, "Buy",
-            "No limit: bought whenever the candy is enough",
-            { "Farm", "Event", "CandyPets", "Pick" }, {
-                { "halloween_2026_jump_scare",        "Jump Scare" },
-                { "halloween_2026_jacobean_pigeon",   "Jacobean Pigeon" },
-            }, true)
+        do
+            -- Build choices dynamically from CandyPets.Buy (same as public.lua source)
+            local SHOP_NAMES = Interface.SHOP_NAMES or {
+                halloween_2026_jump_scare      = "Jump Scare",
+                halloween_2026_jacobean_pigeon = "Jacobean Pigeon",
+            }
+            local buyList = (type(event) == "table" and type(event.CandyPets) == "table"
+                and type(event.CandyPets.Buy) == "table") and event.CandyPets.Buy or {
+                    { id = "halloween_2026_jump_scare",      price = 40000 },
+                    { id = "halloween_2026_jacobean_pigeon", price = 4000  },
+                }
+            local shopChoices = {}
+            for _, entry in ipairs(buyList) do
+                if type(entry) == "table" and type(entry.id) == "string" then
+                    local name  = SHOP_NAMES[entry.id] or entry.id
+                    local label = entry.price
+                        and string.format("%s (%s candy)", name, tostring(entry.price))
+                        or  name
+                    table.insert(shopChoices, { entry.id, label })
+                end
+            end
+            bindPickSimple(eventTab, "Buy",
+                "No limit: bought whenever the candy is enough",
+                { "Farm", "Event", "CandyPets", "Pick" }, shopChoices, true)
+        end
 
         -- ── WEBHOOK tab ────────────────────────────────────────────────────────
         local webhookTab = Window:Tab({
