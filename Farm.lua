@@ -57,11 +57,14 @@ local UserConfig = {
             AutoSkelicorn = false, -- Crypt -> Lightning Lever -> the machine by the Manor -> buy 1 Skelicorn (120k candy)
             CandyPets = {
                 Enabled = false,
-                Pick = {},
+                Pick = {}, -- what to buy (Skelicorn too): one every 0.5 s until the candy runs out
+                MaxBuy = false, -- true: as many as the candy pays for, in ONE purchase
                 KeepCandy = 0,
                 Buy = {
-                    { id = "halloween_2026_jump_scare",      price = 40000, max = 1 },
-                    { id = "halloween_2026_jacobean_pigeon", price = 4000,  max = 4 },
+                    { id = "halloween_2026_jump_scare",      price = 40000,  max = 1 },
+                    { id = "halloween_2026_jacobean_pigeon", price = 4000,   max = 4 },
+                    -- sold by the machine by the Manor (Lightning Lever): bought by the Skelicorn task, not here
+                    { id = "halloween_2026_skelicorn",       price = 120000, max = 0, machine = true },
                 },
             },
             Quests = false,
@@ -3697,7 +3700,7 @@ __moduleSources["Services/Interface"] = function(...)
 
         local halloweenSection = eventTab:Section({ Title = "Halloween 2026" })
         bindToggle(eventTab, "Ghost Gallery",
-            "Joins every round and vacuums ghosts (Rusty Keys)",
+            "Joins every round and vacuums the ghosts (Rusty Keys)",
             { "Farm", "Event", "GhostGallery" })
         bindToggle(eventTab, "Join by Zone",
             "Joins Ghost Gallery by standing in the Manor circle",
@@ -3708,11 +3711,11 @@ __moduleSources["Services/Interface"] = function(...)
         bindToggle(eventTab, "Hauntlet before Ghost Gallery",
             "A Hauntlet run comes first when a Ghost Gallery round is near",
             { "Farm", "Event", "HauntletFirst" })
-        bindToggle(eventTab, "Hauntlet Squad Play",
+        bindToggle(eventTab, "Hauntlet squad play",
             "Your accounts in one run take turns with phone / keys / wand",
             { "Farm", "Event", "HauntletSquad" })
-        uiInput(eventTab, "Squad Key (private)",
-            "Same key on every alt — at least 8 characters (the worker's SQUAD_KEY); empty = nothing sent",
+        uiInput(eventTab, "Squad key (private)",
+            "same key on every alt",
             "",
             (function()
                 local v = read({ "Farm", "Event", "HauntletSquadKey" }) or ""
@@ -3721,20 +3724,20 @@ __moduleSources["Services/Interface"] = function(...)
             function(v)
                 v = tostring(v or ""):match("^%s*(.-)%s*$")
                 if v ~= "" and #v < 8 then
-                    notify("Squad Key", "At least 8 characters required (the worker's SQUAD_KEY)")
+                    notify("Squad key", "At least 8 characters (the worker's SQUAD_KEY)")
                     return
                 end
                 write({ "Farm", "Event", "HauntletSquadKey" }, v)
-                notify("Squad key", v == "" and "Removed." or "Saved: takes effect from the next run.")
+                notify("Squad key", v == "" and "Removed: nothing is sent." or "Saved on this device: from the next run.")
             end)
-        bindPickSimple(eventTab, "Door Move",
+        bindPickSimple(eventTab, "Door move",
             "How the bot reaches a door: tween (smooth), walk, or teleport",
             { "Farm", "Event", "HauntletMove" },
             { { "tween", "Tween (smooth)" }, { "walk", "Walk" }, { "tp", "Teleport" } }, false)
-        bindSlider(eventTab, "Move Time (s)",
+        bindSlider(eventTab, "Move time",
             "Tween: seconds to reach a door (shorter = faster)",
             { "Farm", "Event", "HauntletMoveSeconds" }, 0.1, 5, 0.1, "s")
-        bindToggle(eventTab, "Auto Stray Cat", "1 water to the Stray Cat a day (+candy)", { "Farm", "Event", "StrayCat" })
+        bindToggle(eventTab, "Auto Stray Cat", "", { "Farm", "Event", "StrayCat" })
         eventTab:Space()
 
         local cryptSection = eventTab:Section({ Title = "Crypt" })
@@ -3754,7 +3757,7 @@ __moduleSources["Services/Interface"] = function(...)
             "Twig graves first until the nest is built",
             { "Farm", "Event", "AutoNest" })
         bindToggle(eventTab, "Auto Skelicorn",
-            "Lightning Lever → machine by Manor → 1 Skelicorn (120k candy)",
+            "Lightning Lever from the Crypt → machine by the Manor → 1 Skelicorn (120k candy)",
             { "Farm", "Event", "AutoSkelicorn" })
         eventTab:Space()
 
@@ -3772,23 +3775,24 @@ __moduleSources["Services/Interface"] = function(...)
             "Buys the pets picked below with candy, as many as the candy pays for",
             { "Farm", "Event", "CandyPets", "Enabled" })
         do
-            -- Build choices dynamically from CandyPets.Buy (same as public.lua source)
+            -- Build choices dynamically from CandyPets.Buy (matches public.lua source)
             local SHOP_NAMES = Interface.SHOP_NAMES or {
                 halloween_2026_jump_scare      = "Jump Scare",
                 halloween_2026_jacobean_pigeon = "Jacobean Pigeon",
+                halloween_2026_skelicorn       = "Skelicorn",
             }
             local buyList = (type(event) == "table" and type(event.CandyPets) == "table"
                 and type(event.CandyPets.Buy) == "table") and event.CandyPets.Buy or {
-                    { id = "halloween_2026_jump_scare",      price = 40000 },
-                    { id = "halloween_2026_jacobean_pigeon", price = 4000  },
+                    { id = "halloween_2026_jump_scare",      price = 40000  },
+                    { id = "halloween_2026_jacobean_pigeon", price = 4000   },
+                    { id = "halloween_2026_skelicorn",       price = 120000, machine = true },
                 }
             local shopChoices = {}
             for _, entry in ipairs(buyList) do
                 if type(entry) == "table" and type(entry.id) == "string" then
                     local name  = SHOP_NAMES[entry.id] or entry.id
-                    local label = entry.price
-                        and string.format("%s (%s candy)", name, tostring(entry.price))
-                        or  name
+                    local price = entry.price and tostring(entry.price):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "") or nil
+                    local label = price and string.format("%s (%s candy)", name, price) or name
                     table.insert(shopChoices, { entry.id, label })
                 end
             end
@@ -3796,64 +3800,9 @@ __moduleSources["Services/Interface"] = function(...)
                 "No limit: bought whenever the candy is enough",
                 { "Farm", "Event", "CandyPets", "Pick" }, shopChoices, true)
         end
-
-        -- ── WEBHOOK tab ────────────────────────────────────────────────────────
-        local webhookTab = Window:Tab({
-            Title = "Webhook",
-            Icon  = "solar:bell-bold",
-        })
-
-        local hookSection = webhookTab:Section({ Title = "Discord Webhook" })
-        local function shortUrl(url)
-            if url == "" then return "" end
-            return string.sub(url, 1, 24) .. "..."
-        end
-        uiInput(webhookTab, "Webhook URL", "Paste your Discord webhook URL",
-            "https://discord.com/api/webhooks/...",
-            shortUrl(read({ "Notifications", "Webhooks", "Summary" }) or ""),
-            function(url)
-                url = string.match(tostring(url or ""), "^%s*(.-)%s*$")
-                if url ~= "" and not Config.isValidWebhookUrl(url) then
-                    notify("Webhook", "That is not a valid Discord webhook URL")
-                    return
-                end
-                write({ "Notifications", "Webhooks", "Summary" }, url)
-                if url ~= "" then write({ "Notifications", "Enabled" }, true) end
-                notify("Webhook", url == "" and "Webhook removed." or "Saved. Press 'Send Test Message'.")
-            end)
-        uiInput(webhookTab, "Discord User ID", "For @mentions (optional)",
-            "123456789...",
-            read({ "Notifications", "PingDiscordUserId" }) or "",
-            function(id)
-                id = string.match(tostring(id or ""), "^%s*(.-)%s*$")
-                if id ~= "" and not string.match(id, "^%d+$") then
-                    notify("User ID", "Digits only"); return
-                end
-                write({ "Notifications", "PingDiscordUserId" }, id)
-            end)
-        bindToggle(webhookTab, "Ping Me",   "@mentions you on selected messages", { "Notifications", "Ping" })
-        bindToggle(webhookTab, "Send Summary", "Summary message every few minutes", { "Notifications", "SendSummary" })
-        bindSlider(webhookTab, "Summary Every (min)", "", { "Notifications", "SummaryIntervalMinutes" }, 1, 120, 1, "min")
-        uiButton(webhookTab, "Send Test Message", "Sends one test message to your webhook",
-            function() return callApi("TestWebhook") end)
-        webhookTab:Space()
-
-        local messagesSection = webhookTab:Section({ Title = "Which Messages" })
-        bindToggle(webhookTab, "Each Finished Need",   "", { "Notifications", "SendOnTaskComplete" })
-        bindToggle(webhookTab, "Kick / Disconnect",    "", { "Notifications", "SendOnKick" })
-        bindToggle(webhookTab, "Errors",               "", { "Notifications", "SendOnError" })
-        bindToggle(webhookTab, "Start / Stop",         "", { "Notifications", "SendOnStartStop" })
-        bindToggle(webhookTab, "Show My Roblox Name",  "", { "Notifications", "IncludeUsername" })
-        uiInput(webhookTab, "Alerts URL (optional)", "Separate channel for alerts",
-            "https://...",
-            shortUrl(read({ "Notifications", "Webhooks", "Alerts" }) or ""),
-            function(url)
-                url = string.match(tostring(url or ""), "^%s*(.-)%s*$")
-                if url ~= "" and not Config.isValidWebhookUrl(url) then
-                    notify("Alerts URL", "Not a valid Discord webhook URL"); return
-                end
-                write({ "Notifications", "Webhooks", "Alerts" }, url)
-            end)
+        bindToggle(eventTab, "Max Buy",
+            "On: as many as your candy pays for, in one purchase. Off: one every 0.5s until the candy runs out",
+            { "Farm", "Event", "CandyPets", "MaxBuy" })
 
         -- ── CONFIG tab ─────────────────────────────────────────────────────────
         local configTab = Window:Tab({
