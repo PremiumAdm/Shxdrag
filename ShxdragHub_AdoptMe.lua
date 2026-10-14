@@ -2903,7 +2903,7 @@ __moduleSources["Services/Interface"] = function(...)
     -- ── Branding ──────────────────────────────────────────────────────────────
     Interface.TITLE         = "Shxdrag hub"
     Interface.EDITION       = "Adopt Me"
-    Interface.LIBRARY_URL   = "https://github.com/Footagesus/WindUI/releases/download/v1.6.64/main.lua"
+    Interface.LIBRARY_URL   = "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
     Interface.DISCORD_INVITE = ""
     Interface.DONATION_LINKS = {}
     Interface.CRYPTO = {}
@@ -13150,7 +13150,17 @@ __moduleSources["main"] = function(...)
                 return nil
             end
             if petPictures[id] == nil then
-                petPictures[id] = false -- avatar fetch disabled: no external requests
+                petPictures[id] = false
+                task.spawn(function()
+                    local ok, url = pcall(function()
+                        local data = Util.jsonDecode(game:HttpGet("https://thumbnails.roblox.com/v1/assets?assetIds=" .. id
+                            .. "&size=150x150&format=Png"))
+                        return data.data[1].imageUrl
+                    end)
+                    if ok and type(url) == "string" and string.find(url, "^https://tr%.rbxcdn%.com/") then
+                        petPictures[id] = url
+                    end
+                end)
             end
             return petPictures[id] or nil
         end
