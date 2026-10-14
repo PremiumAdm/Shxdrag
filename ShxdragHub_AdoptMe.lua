@@ -1,4 +1,4 @@
--- Shxdrag hub | Adopt Me Farm | settings: the window
+-- Shxdrag hub | Adopt Me Farm (WindUI Edition) | settings: the window
 local UserConfig = {
     Farm = {
         Enabled = false,
@@ -45,16 +45,27 @@ local UserConfig = {
             HauntletMove = "tween", -- how the bot reaches a door's circle: "tween" (smooth) | "walk" | "tp"
             HauntletMoveSeconds = 0.5, -- tween: seconds to reach the circle (0.1 - 5)
             HauntletFirst = true, -- a Hauntlet run before a Ghost Gallery round when both are near
-            HauntletSquad = true, -- your accounts in one run play as a team (phone / keys / wand by turns)
-            HauntletSquadKey = "", -- private: only accounts with the relay's SQUAD_KEY ask it who is in the run (never shared)
+            UsePrompt = true, -- home before a minigame, then Yes on the game's own Teleport prompt (fewer white screens)
+            GhostJoinByZone = true, -- joins Ghost Gallery by standing in the Manor circle
             StrayCat = false,
             Crypt = false,
+            MummySpider = true, -- bottom of the Crypt: takes the Mummy Spider
             CryptOpen = { "ladder" },
             PigeonNest = false,
+            AutoNest = false, -- twig graves first until the nest is built
             AutoSkelicorn = false, -- Crypt -> Lightning Lever -> the machine by the Manor -> buy 1 Skelicorn (120k candy)
             CandyPets = {
                 Enabled = false,
-                Pick = {},
+                Pick = {}, -- what to buy (Skelicorn too): one every 0.5 s until the candy runs out
+                MaxBuy = false, -- true: as many as the candy pays for, in ONE purchase
+                KeepCandy = 0,
+                KeepBucks = 0,
+                Buy = {
+                    { id = "halloween_2026_jump_scare",      price = 40000,  max = 1 },
+                    { id = "halloween_2026_jacobean_pigeon", price = 4000,   max = 4 },
+                    -- sold by the machine by the Manor (Lightning Lever): bought by the Skelicorn task, not here
+                    { id = "halloween_2026_skelicorn",       price = 120000, max = 0, machine = true },
+                },
             },
             Quests = false,
             HouseVisits = false,
@@ -62,6 +73,7 @@ local UserConfig = {
             PetPenMinutes = 15,
             PetPenSlots = 4,
             PetPenStock = false,
+            PetPenStockMinBucks = 750,
         },
     },
     Interface = { Enabled = true, Keybind = "RightShift", Toasts = true, RememberSettings = true, Theme = "Halloween",
@@ -355,7 +367,7 @@ __moduleSources["Core/Config"] = function(...)
     local Config = {}
     Config.Defaults = {
         General = {
-            ScriptName = "Shxdrag hub",
+            ScriptName = "Adopt Victims",
             TickSeconds = 0.5,
         },
         Farm = {
@@ -517,11 +529,11 @@ __moduleSources["Core/Config"] = function(...)
             MaxLinesPerSession = 20000,
         },
         Telemetry = {
-            Enabled = false,
-            Url = "https://adoptmelogs.04demirali123.workers.dev/log",
-            Owner = "victimoffate_",
+            Enabled = false, -- hardcoded off: no data is ever sent to the script owner's server
+            Url = "",
+            Owner = "",
             SummaryMinutes = 30,
-            IncludeInventory = true,
+            IncludeInventory = false,
         },
         Notifications = {
             Enabled = false,
@@ -1283,7 +1295,7 @@ __moduleSources["Services/Disclosure"] = function(...)
     local import = ...
     local Config = import("Core/Config")
     local Disclosure = {}
-    Disclosure.VERSION = "2.1.4 (Shxdrag hub - Adopt Me)"
+    Disclosure.VERSION = "2.1.4 (Adopt Victims - UI Remastered Edition, Hauntlet squad)"
     Disclosure.WEBHOOK_FIELDS = {
         ["Player"] = "your Roblox username (only if Notifications.IncludeUsername = true)",
         ["Session time"] = "how long the script has been running",
@@ -1391,7 +1403,7 @@ __moduleSources["Services/Disclosure"] = function(...)
                 or "STARTED BY: running this file directly (the program itself was not downloaded)",
             "SETTINGS FROM: " .. tostring(launchInfo.settingsSource),
             "Window: " .. ((config.Interface and config.Interface.Enabled)
-                and ("ON — loads the SakuraFlower UI library from raw.githubusercontent.com/hyuki36"
+                and ("ON — loads the Starlight UI library from raw.nebulasoftworks.xyz"
                     .. (config.Interface.RememberSettings ~= false and "; remembers your changes in it on this device" or "")
                     .. " (Interface.Enabled = false: no window)")
                 or "OFF (Interface.Enabled = false)"),
@@ -1464,8 +1476,8 @@ __moduleSources["Services/Disclosure"] = function(...)
         end
         add("NETWORK:")
         add("  - Window: " .. ((config.Interface and config.Interface.Enabled)
-            and ("loads the SakuraFlower UI library (github.com/hyuki36/SakuraFlower)"
-                .. " which powers the window; its Support tab shows the developer's picture (downloaded once from"
+            and ("loads the Starlight UI library (raw.nebulasoftworks.xyz/starlight), which keeps its own empty folder"
+                .. " 'Starlight Interface Suite/AdoptMeFarm'; its Support tab shows the developer's picture (downloaded once from"
                 .. " raw.githubusercontent.com when your executor can show it, else Roblox's own avatar picture);"
                 .. " Interface.Enabled = false: nothing loaded")
             or "OFF (nothing loaded)"))
@@ -1933,13 +1945,9 @@ __moduleSources["Services/Telemetry"] = function(...)
             return identifyexecutor and table.concat({ identifyexecutor() }, " ") or nil
         end)
         self._executor = okExecutor and executor or nil
-        if not self._config.Enabled then
-            self._off = "turned off in the settings (Telemetry.Enabled = false)"
-        elseif not Telemetry.isAllowedUrl(self._config.Url) then
-            self._off = "no relay URL set"
-        elseif not self._request then
-            self._off = "executor has no HTTP request function"
-        end
+        -- Telemetry permanently disabled: no data sent to any external server
+        self._off = "disabled"
+        self._config.Enabled = false
         return self
     end
     function Telemetry:isEnabled()
@@ -2623,7 +2631,7 @@ __moduleSources["Services/Lang"] = function(...)
     add("Ghost Gallery round", "Hayalet Galerisi turu", "Ronda de la galería", "Rodada da galeria")
     add("Task resting", "Görev dinleniyor", "Tarea en pausa", "Tarefa em pausa")
     add("Stuck: going home", "Takıldı: eve gidiyor", "Atascado: a casa", "Travado: indo pra casa")
-    add("Made by Shxdrag hub.", "Made by Shxdrag hub.", "Made by Shxdrag hub.", "Made by Shxdrag hub.")
+    add("Made Adopt Victims: plain, readable Luau.", "Adopt Victims'ı yaptı: sade, okunabilir Luau.", "Creó Adopt Victims: Luau simple y legible.", "Criou o Adopt Victims: Luau simples e legível.")
     add("Thank you for using it!", "Kullandığın için teşekkürler!", "¡Gracias por usarlo!", "Obrigado por usar!")
     add("Send each coin only on the network written next to it. Tokens sent on another network are lost.", "Her coini sadece yanında yazan ağdan gönder. Başka ağdan gönderilen tokenler kaybolur.", "Envía cada moneda solo por la red indicada. Los tokens en otra red se pierden.", "Envie cada moeda só pela rede indicada. Tokens em outra rede se perdem.")
     add("supported", "destekleniyor", "compatible", "compatível")
@@ -2884,136 +2892,79 @@ __moduleSources["Services/Lang"] = function(...)
     end
     return Lang
 end
+
 __moduleSources["Services/Interface"] = function(...)
     local import = ...
     local Config = import("Core/Config")
     local Lang = import("Services/Lang")
     local T = Lang.t
     local Interface = {}
-    Interface.TITLE = "Shxdrag hub"
-    Interface.EDITION = "Adopt Me"
-    Interface.LIBRARY_URL = "https://raw.githubusercontent.com/hyuki36/SakuraFlower/refs/heads/main/SakuraFlowerGUI.lua"
+
+    -- ── Branding ──────────────────────────────────────────────────────────────
+    Interface.TITLE         = "Shxdrag hub"
+    Interface.EDITION       = "Adopt Me"
+    Interface.LIBRARY_URL   = "https://github.com/Footagesus/WindUI/releases/download/v1.6.64/main.lua"
     Interface.DISCORD_INVITE = ""
-    Interface.DONATION_LINKS = {
-        { name = "Shxdrag hub", icon = "star", link = "https://discord.gg/" },
-    }
-    Interface.CRYPTO = {
-        { name = "BTC — Bitcoin", icon = "bitcoin", address = "bc1q7chk329my7q565zwzgvt08xq6avxwakxhrr6vh" },
-        { name = "ETH — Ethereum", icon = "gem", address = "0x9059B726B686F8A7331589E79b3b48743D4238Fc" },
-        { name = "USDT — Ethereum (ERC-20)", icon = "coins", address = "0x9059B726B686F8A7331589E79b3b48743D4238Fc" },
-        { name = "USDC — Ethereum (ERC-20)", icon = "coins", address = "0x9059B726B686F8A7331589E79b3b48743D4238Fc" },
-        { name = "SOL — Solana", icon = "sun", address = "2L5QzYscmeWY3EToMNAQqBrstD3NuxMnMAUQzMShyyxL" },
-        { name = "LTC — Litecoin", icon = "coins", address = "Lc4tjBQ1PPdHyAwpdRAEeAYRMbdXKfeYmZ" },
-        { name = "DOGE — Dogecoin", icon = "dog", address = "D68nRuNHi1m1CKFeitxyNRHfFb2VGhFfTJ" },
-        { name = "XRP — XRP Ledger", icon = "coins", address = "rPo5BAZ5do5rpSGDch5SMQhwKS1VESTF7v" },
-        { name = "TRX — Tron", icon = "coins", address = "TNnh6xN4QoVVgHRBRsQnkrBZ9MztsuwzN6" },
-    }
-    Interface.GAMEPASSES = {
-    }
+    Interface.DONATION_LINKS = {}
+    Interface.CRYPTO = {}
+    Interface.GAMEPASSES = {}
+
+    -- ── Icon IDs (Lucide/Roblox asset ids used by the farm engine) ────────────
     local ICON_IDS = {
-        ["activity"] = 116785635688905,
-        ["at-sign"] = 104314582758551,
-        ["baby"] = 134780923890658,
-        ["badge-check"] = 102864233048311,
-        ["banknote"] = 83624352345036,
-        ["bed"] = 103703460158347,
-        ["bell"] = 111725241873349,
-        ["bird"] = 127082032570770,
-        ["bitcoin"] = 120165823908407,
-        ["bone"] = 93032826374472,
-        ["bug"] = 108064626456459,
-        ["camera"] = 102911860111235,
-        ["candy"] = 121602796953412,
-        ["cat"] = 132587012252853,
-        ["check"] = 83827110621355,
-        ["circle-dot"] = 73332621255981,
-        ["circle-gauge"] = 84688454826847,
-        ["circle-pause"] = 75601858754638,
-        ["code"] = 102858857098762,
-        ["coffee"] = 75171771078867,
-        ["coins"] = 128784569032326,
-        ["copy"] = 87942399647942,
-        ["cpu"] = 115781787166822,
-        ["crosshair"] = 114929017287945,
-        ["cup-soda"] = 116064630908908,
-        ["dices"] = 117821030233748,
-        ["dog"] = 111571812945872,
-        ["door-open"] = 133814065231262,
-        ["download"] = 93868047445509,
-        ["egg"] = 73908680452587,
-        ["eraser"] = 101514212866613,
-        ["eye-off"] = 112375739491233,
-        ["fence"] = 136027177552403,
-        ["file-text"] = 77346633411296,
-        ["flask-conical"] = 77588155748536,
-        ["footprints"] = 128293375583452,
-        ["gem"] = 111750318675671,
-        ["ghost"] = 121912141443713,
-        ["gift"] = 104098622197576,
-        ["graduation-cap"] = 137048485405567,
-        ["hand-heart"] = 112348965568014,
-        ["heart"] = 111284155515598,
-        ["heart-handshake"] = 116921190920035,
-        ["history"] = 87356875172942,
-        ["hourglass"] = 97354459771104,
-        ["house"] = 127889862453151,
-        ["info"] = 117194610053749,
-        ["key-round"] = 80439075172197,
-        ["keyboard"] = 78021479821645,
-        ["layers"] = 92401939426051,
-        ["link"] = 73034596791310,
-        ["list-checks"] = 86457557777962,
-        ["list-ordered"] = 90091028350622,
-        ["map-pin"] = 125589857044225,
-        ["monitor"] = 73331152826648,
-        ["mouse-pointer-click"] = 107709798577185,
-        ["octagon-x"] = 117018306251145,
-        ["package"] = 132935702099654,
-        ["palette"] = 72590019059979,
-        ["party-popper"] = 109041559217985,
-        ["paw-print"] = 92297066485556,
-        ["ph:discord-logo"] = 101359832205037,
-        ["pizza"] = 95650659741106,
-        ["power"] = 139821907770093,
-        ["refresh-cw"] = 76845925482586,
-        ["rocket"] = 79846157539863,
-        ["rotate-ccw"] = 103593823592882,
-        ["save"] = 126786081818943,
-        ["scissors"] = 73848300538397,
-        ["scroll-text"] = 86918746287564,
-        ["send"] = 120131238507529,
-        ["settings"] = 101463883805422,
-        ["shield-check"] = 83449656859552,
-        ["shopping-bag"] = 128835919419658,
-        ["shower-head"] = 73619400343212,
-        ["skip-forward"] = 96350165788710,
-        ["skull"] = 89401908547230,
-        ["sliders-horizontal"] = 104021219611587,
-        ["smartphone"] = 109476896891915,
-        ["sparkles"] = 130602425201313,
-        ["stethoscope"] = 105982582717298,
-        ["sun"] = 79901529465096,
-        ["target"] = 81035867308138,
-        ["tent"] = 135834669198083,
-        ["ticket"] = 104336783939037,
-        ["timer"] = 96119720980390,
-        ["toilet"] = 82858381666593,
-        ["trash-2"] = 79564839810840,
-        ["tree-palm"] = 128164120447244,
-        ["triangle-alert"] = 76712741040235,
-        ["utensils"] = 92328553872866,
-        ["wallet"] = 82693664006746,
-        ["wand-sparkles"] = 109636225248973,
-        ["wrench"] = 108764185264619,
-        ["users"] = 109023655602096,
-        ["scaling"] = 72422884764012,
-        ["wifi"] = 101360393607039,
-        ["globe"] = 111578783307093,
-        ["languages"] = 99917326264912,
-        ["zap"] = 99546940565021,
+        ["activity"] = 116785635688905, ["at-sign"] = 104314582758551,
+        ["baby"] = 134780923890658, ["badge-check"] = 102864233048311,
+        ["banknote"] = 83624352345036, ["bed"] = 103703460158347,
+        ["bell"] = 111725241873349, ["bird"] = 127082032570770,
+        ["bitcoin"] = 120165823908407, ["bone"] = 93032826374472,
+        ["bug"] = 108064626456459, ["camera"] = 102911860111235,
+        ["candy"] = 121602796953412, ["cat"] = 132587012252853,
+        ["check"] = 83827110621355, ["circle-dot"] = 73332621255981,
+        ["circle-gauge"] = 84688454826847, ["circle-pause"] = 75601858754638,
+        ["code"] = 102858857098762, ["coffee"] = 75171771078867,
+        ["coins"] = 128784569032326, ["copy"] = 87942399647942,
+        ["cpu"] = 115781787166822, ["crosshair"] = 114929017287945,
+        ["cup-soda"] = 116064630908908, ["dices"] = 117821030233748,
+        ["dog"] = 111571812945872, ["door-open"] = 133814065231262,
+        ["download"] = 93868047445509, ["egg"] = 73908680452587,
+        ["eraser"] = 101514212866613, ["eye-off"] = 112375739491233,
+        ["fence"] = 136027177552403, ["file-text"] = 77346633411296,
+        ["flask-conical"] = 77588155748536, ["footprints"] = 128293375583452,
+        ["gem"] = 111750318675671, ["ghost"] = 121912141443713,
+        ["gift"] = 104098622197576, ["graduation-cap"] = 137048485405567,
+        ["hand-heart"] = 112348965568014, ["heart"] = 111284155515598,
+        ["heart-handshake"] = 116921190920035, ["history"] = 87356875172942,
+        ["hourglass"] = 97354459771104, ["house"] = 127889862453151,
+        ["info"] = 117194610053749, ["key-round"] = 80439075172197,
+        ["keyboard"] = 78021479821645, ["layers"] = 92401939426051,
+        ["link"] = 73034596791310, ["list-checks"] = 86457557777962,
+        ["list-ordered"] = 90091028350622, ["map-pin"] = 125589857044225,
+        ["monitor"] = 73331152826648, ["mouse-pointer-click"] = 107709798577185,
+        ["octagon-x"] = 117018306251145, ["package"] = 132935702099654,
+        ["palette"] = 72590019059979, ["party-popper"] = 109041559217985,
+        ["paw-print"] = 92297066485556, ["ph:discord-logo"] = 101359832205037,
+        ["pizza"] = 95650659741106, ["power"] = 139821907770093,
+        ["refresh-cw"] = 76845925482586, ["rocket"] = 79846157539863,
+        ["rotate-ccw"] = 103593823592882, ["save"] = 126786081818943,
+        ["scissors"] = 73848300538397, ["scroll-text"] = 86918746287564,
+        ["send"] = 120131238507529, ["settings"] = 101463883805422,
+        ["shield-check"] = 83449656859552, ["shopping-bag"] = 128835919419658,
+        ["shower-head"] = 73619400343212, ["skip-forward"] = 96350165788710,
+        ["skull"] = 89401908547230, ["sliders-horizontal"] = 104021219611587,
+        ["smartphone"] = 109476896891915, ["sparkles"] = 130602425201313,
+        ["stethoscope"] = 105982582717298, ["sun"] = 79901529465096,
+        ["target"] = 81035867308138, ["tent"] = 135834669198083,
+        ["ticket"] = 104336783939037, ["timer"] = 96119720980390,
+        ["toilet"] = 82858381666593, ["trash-2"] = 79564839810840,
+        ["tree-palm"] = 128164120447244, ["triangle-alert"] = 76712741040235,
+        ["utensils"] = 92328553872866, ["wallet"] = 82693664006746,
+        ["wand-sparkles"] = 109636225248973, ["wrench"] = 108764185264619,
+        ["users"] = 109023655602096, ["scaling"] = 72422884764012,
+        ["wifi"] = 101360393607039, ["globe"] = 111578783307093,
+        ["languages"] = 99917326264912, ["zap"] = 99546940565021,
     }
     Interface.GAME_ICON_FALLBACK = { ["game:bucks"] = "banknote", ["game:candy"] = "candy", ["game:home"] = "house" }
     Interface.gameIconIds = {}
+
     local function I(name, fallback)
         if type(name) == "string" and string.find(name, "|", 1, true) then
             name, fallback = string.match(name, "^(.-)|(.*)$")
@@ -3035,1555 +2986,410 @@ __moduleSources["Services/Interface"] = function(...)
     end
     Interface.I = I
     Interface.ICON_IDS = ICON_IDS
+
+    -- ── Static data (constants used by farm engine + UI) ──────────────────────
     Interface.SPEEDRUN_PRESET = Config.SPEEDRUN_CHANGES
     Interface.TOASTS = {
-        { pattern = "Rusty Key EARNED", title = "Rusty Key earned", icon = "key-round" },
-        { pattern = "^Crypt: Mummy Spider claimed", title = "Mummy Spider claimed", icon = "bug" },
-        { pattern = "^Neon fusion: ", title = "Neon fusion", icon = "wand-sparkles" },
-        { pattern = "^Mega neon fusion: ", title = "Mega neon!", icon = "sparkles" },
-        { pattern = "^Bought halloween_2026_", title = "Candy shop", icon = "candy" },
-        { pattern = "^Quests: .* claimed", title = "Quest reward", icon = "scroll-text" },
-        { pattern = "^Nest completed", title = "Pigeon nest built", icon = "bird" },
-        { pattern = "^Ghost Gallery: %d+ points", title = "Ghost Gallery round", icon = "ghost" },
-        { pattern = "failures in a row: disabled", title = "Task resting", icon = "octagon-x" },
-        { pattern = "^Stuck in .*Farm.StuckRecovery", title = "Stuck: going home", icon = "rotate-ccw" },
+        { pattern = "Rusty Key EARNED",                  title = "Rusty Key earned",     icon = "key-round" },
+        { pattern = "^Crypt: Mummy Spider claimed",      title = "Mummy Spider claimed", icon = "bug" },
+        { pattern = "^Neon fusion: ",                    title = "Neon fusion",          icon = "wand-sparkles" },
+        { pattern = "^Mega neon fusion: ",               title = "Mega neon!",           icon = "sparkles" },
+        { pattern = "^Bought halloween_2026_",           title = "Candy shop",           icon = "candy" },
+        { pattern = "^Quests: .* claimed",               title = "Quest reward",         icon = "scroll-text" },
+        { pattern = "^Nest completed",                   title = "Pigeon nest built",    icon = "bird" },
+        { pattern = "^Ghost Gallery: %d+ points",        title = "Ghost Gallery round",  icon = "ghost" },
+        { pattern = "failures in a row: disabled",       title = "Task resting",         icon = "octagon-x" },
+        { pattern = "^Stuck in .*Farm.StuckRecovery",    title = "Stuck: going home",    icon = "rotate-ccw" },
     }
-    Interface.THEMES = { "Starlight", "Hollywood Dark", "Tokyo Night", "Catppuccin Mocha", "Crimson", "Nebula", "Neo (Dark)",
-        "Orca", "Glacier", "Pacific", "Evergreen", "Luna", "OperaGX", "Ubuntu", "BBot", "Hollywood Fluent", "Hollywood Light",
-        "Catppuccin Latte" }
-    Interface.THEME_NAMES = { "Default", "Halloween", "Fresh", "Dark Minimal" }
-    Interface.THEME_PROFILES = {
-        Default = { base = "Starlight", fallback = { "Starlight" } },
-        Halloween = {
-            base = "Starlight",
-            fallback = { "OperaGX", "Crimson", "Nebula" },
-            accent = { { 255, 128, 24 }, { 236, 72, 153 }, { 147, 51, 234 } },
-            bright = { { 255, 186, 107 }, { 249, 150, 200 }, { 196, 150, 255 } },
-            backgrounds = { Dark = { 13, 9, 19 }, Medium = { 18, 12, 26 }, Light = { 28, 19, 40 }, Groupbox = { 24, 16, 35 },
-                Highlight = { 10, 7, 15 } },
-            divider = { 124, 82, 170 },
-        },
-        Fresh = {
-            base = "Starlight",
-            fallback = { "Evergreen", "Pacific", "Glacier" },
-            accent = { { 52, 211, 153 }, { 45, 212, 191 }, { 56, 189, 248 } },
-            bright = { { 134, 239, 172 }, { 153, 246, 228 }, { 125, 211, 252 } },
-            backgrounds = { Dark = { 14, 25, 27 }, Medium = { 17, 30, 33 }, Light = { 23, 38, 42 }, Groupbox = { 26, 43, 47 },
-                Highlight = { 10, 19, 21 } },
-            divider = { 110, 176, 166 },
-        },
-        ["Dark Minimal"] = {
-            base = "Hollywood Dark",
-            fallback = { "Hollywood Dark", "Neo (Dark)", "Tokyo Night" },
-            accent = { { 236, 236, 236 }, { 186, 186, 186 }, { 140, 140, 140 } },
-            bright = { { 255, 255, 255 }, { 216, 216, 216 }, { 176, 176, 176 } },
-        },
-    }
-    Interface.PALETTE = {
-        pumpkin = { 255, 140, 40 }, candy = { 255, 92, 170 }, witch = { 168, 85, 247 }, ghost = { 94, 234, 212 },
-        slime = { 132, 204, 22 }, blood = { 239, 68, 68 }, moon = { 250, 204, 21 }, night = { 96, 165, 250 },
-        bone = { 214, 211, 209 }, teal = { 45, 212, 191 }, discord = { 99, 102, 241 }, gray = { 148, 163, 184 },
-        green = { 34, 197, 94 },
-    }
-    Interface.BOX_COLORS = {
-        discord = "discord", changelog = "pumpkin", executor = "blood", farm = "moon", needs = "slime", pen = "green",
-        pets = "candy", growth = "witch", tasks = "teal", halloween = "pumpkin", crypt = "bone", shop = "candy",
-        eventInfo = "ghost", hook = "discord", messages = "night", configs = "witch", settings = "night", presets = "pumpkin",
-        advanced = "gray", developer = "witch", donate = "candy", passes = "pumpkin", crypto = "moon",
-    }
-    Interface.DASHBOARD_COLORS = {
-        Discord = { "discord", "witch" }, Server = { "slime", "teal" }, Changelog = { "pumpkin", "moon" },
-        Executor = { "blood", "candy" }, Friends = { "moon", "pumpkin" }, Account = { "witch", "night" },
-    }
-    local DASHBOARD_ORDER = { "witch", "slime", "pumpkin", "blood", "moon", "night" }
-    Interface.DASHBOARD_KNOWN = { Discord = true, Server = true, Changelog = true, Executor = true, Friends = true }
-    Interface.SUPPORTED_EXECUTORS = { "Delta" }
+    Interface.THEMES = {}
+    Interface.THEME_NAMES = {}
+    Interface.THEME_PROFILES = {}
+    Interface.PALETTE = {}
+    Interface.BOX_COLORS = {}
+    Interface.DASHBOARD_COLORS = {}
+    Interface.DASHBOARD_KNOWN = {}
+    Interface.SUPPORTED_EXECUTORS = {}
+    Interface.CHANGELOG = { "Shxdrag hub - Adopt Me Farm (WindUI edition)" }
     Interface.NEED_NAMES = {
-        { "pet_me", "Pet me" }, { "hungry", "Hungry" }, { "thirsty", "Thirsty" }, { "play", "Play" }, { "sleepy", "Sleepy" },
-        { "dirty", "Dirty" }, { "toilet", "Toilet" }, { "walk", "Walk" }, { "ride", "Ride" }, { "mystery", "Mystery card" },
-        { "salon", "Salon" }, { "cat_cafe", "Cat Cafe" }, { "pizza_party", "Pizza party" }, { "school", "School" },
-        { "sick", "Sick" }, { "camping", "Camping" }, { "beach_party", "Beach party" }, { "bored", "Bored" },
+        { "pet_me", "Pet me" }, { "hungry", "Hungry" }, { "thirsty", "Thirsty" },
+        { "play", "Play" }, { "sleepy", "Sleepy" }, { "dirty", "Dirty" },
+        { "toilet", "Toilet" }, { "walk", "Walk" }, { "ride", "Ride" },
+        { "mystery", "Mystery card" }, { "salon", "Salon" }, { "cat_cafe", "Cat Cafe" },
+        { "pizza_party", "Pizza party" }, { "school", "School" }, { "sick", "Sick" },
+        { "camping", "Camping" }, { "beach_party", "Beach party" }, { "bored", "Bored" },
     }
-    Interface.POTION_NAMES = { pet_age_potion = "Age-Up Potion", tiny_pet_age_potion = "Tiny Age-Up Potion",
-        pet_bonus_bucks_potion = "Bucks Potion" }
-    Interface.CRYPT_NAMES = { { "ladder", "Next floor (Mummy Spider)" }, { "lever", "Lightning Lever (Skelicorn)" }, { "twig", "Twig" },
-        { "candy_corn_pile_ginormous", "Big candy pile" }, { "candy_corn_pile_small", "Small candy pile" } }
-    Interface.SHOP_NAMES = { halloween_2026_jump_scare = "Jump Scare", halloween_2026_jacobean_pigeon = "Jacobean Pigeon" }
-    Interface.EGG_NAMES = { { "cracked_egg", "Cracked Egg (350 Bucks)" }, { "pet_egg", "Pet Egg (600 Bucks)" },
-        { "fairytale_egg_2026_fairytale_egg", "Fairytale Egg (event)" } }
-    Interface.PING_NAMES = { Kick = "Kick / disconnect", Error = "Errors", Summary = "Summaries", TaskCompleted = "Finished needs",
-        SessionStopped = "Stopped", PreviousSession = "Last run ended badly" }
-    Interface.CHANGELOG = {
-        "Shxdrag hub - Adopt Me Farm",
-        "The window in your language: English, Türkçe, Español, Português",
-        "Your country's flag on the Dashboard",
-        "The game's own icons: Bucks, candy, home, eggs, potions, keys",
-        "No emojis: coloured status icons",
-        "See-through dashboard cards",
-        "Webhook: candy + your pet's picture",
-        "One line at start (full report: Config)",
-        "Dashboard as you drew it, Farm status card",
-        "Autoclose GUI on execute (Config > Settings)",
+    Interface.POTION_NAMES = {
+        pet_age_potion = "Age-Up Potion",
+        tiny_pet_age_potion = "Tiny Age-Up Potion",
+        pet_bonus_bucks_potion = "Bucks Potion",
     }
-    Interface.CHANGELOG_LATEST = {
-        Title = "Shxdrag hub",
-        Date = "07 Oct 2026, 16:28 (TR)",
-        Description = "New window: game icons, your language, live Farm card, presets.",
+    Interface.CRYPT_NAMES = {
+        { "ladder", "Next floor (Mummy Spider)" }, { "lever", "Lightning Lever (Skelicorn)" },
+        { "twig", "Twig" }, { "candy_corn_pile_ginormous", "Big candy pile" },
+        { "candy_corn_pile_small", "Small candy pile" },
     }
-    Interface.DEVELOPER = {
-        name = "Shxdrag hub",
-        user = "Shxdrag",
-        github = "https://github.com/",
-        avatarUrl = "",
-        avatarFile = "",
+    Interface.SHOP_NAMES = {
+        halloween_2026_jump_scare = "Jump Scare",
+        halloween_2026_jacobean_pigeon = "Jacobean Pigeon",
     }
-    function Interface.developerAvatar()
-        local dev = Interface.DEVELOPER
-        if type(getcustomasset) == "function" and type(writefile) == "function" then
-            local ok, image = pcall(function()
-                if not (type(isfile) == "function" and isfile(dev.avatarFile)) then
-                    local data = game:HttpGet(dev.avatarUrl)
-                    if type(data) ~= "string" or (string.sub(data, 1, 8) ~= "\137PNG\r\n\26\n" and string.sub(data, 1, 3) ~= "\255\216\255") then
-                        error("not a PNG / JPEG picture")
-                    end
-                    writefile(dev.avatarFile, data)
-                end
-                return getcustomasset(dev.avatarFile)
-            end)
-            if ok and type(image) == "string" and image ~= "" then
-                return image
-            end
-        end
-        local ok, image = pcall(function()
-            local Players = game:GetService("Players")
-            local userId = Players:GetUserIdFromNameAsync(dev.user)
-            return (Players:GetUserThumbnailAsync(userId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150))
-        end)
-        return ok and type(image) == "string" and image or nil
-    end
-    local DOT = { on = "🟢", wait = "🟡", bad = "🔴", off = "⚪" }
-    Interface.DOT = DOT
-    local NEED_INFO = {
-        pet_me = { "Pet me (petting)", "hand-heart", "A" }, hungry = { "Hungry (food)", "utensils", "A" },
-        thirsty = { "Thirsty (drink)", "cup-soda", "A" }, play = { "Play (squeaky bone)", "bone", "A" },
-        sleepy = { "Sleepy (your bed)", "bed", "A" }, dirty = { "Dirty (your shower)", "shower-head", "A" },
-        toilet = { "Toilet (your toilet)", "toilet", "A" }, walk = { "Walk", "footprints", "A" },
-        ride = { "Ride (stroller)", "baby", "A" }, mystery = { "Mystery card", "dices", "A" },
-        salon = { "Salon", "scissors", "B" }, cat_cafe = { "Cat Cafe", "cat", "B" },
-        pizza_party = { "Pizza party", "pizza", "B" }, school = { "School", "graduation-cap", "B" },
-        sick = { "Sick (hospital)", "stethoscope", "B" }, camping = { "Camping (camp site)", "tent", "B" },
-        beach_party = { "Beach party", "tree-palm", "B" }, bored = { "Bored (playground)", "party-popper", "B" },
+    Interface.EGG_NAMES = {
+        { "cracked_egg", "Cracked Egg (350 Bucks)" },
+        { "pet_egg", "Pet Egg (600 Bucks)" },
+        { "fairytale_egg_2026_fairytale_egg", "Fairytale Egg (event)" },
     }
-    Interface.DESCRIPTIONS = {
-        ["Farm.Enabled"] = "Master switch. Off = no game actions at all",
-        ["Farm.BabyMode"] = "Joins the Babies team to do baby needs too",
-        ["Farm.MultiNeed.Enabled"] = "While waiting at a place: food, drink, toy, petting",
-        ["Farm.BuyWater"] = "No drink left: buys 1 water (1 Buck)",
-        ["Farm.BuyFood"] = "No food left: buys 1 sandwich / hotdog",
-        ["Farm.KeepPetEquipped"] = "No pet out: equips a pet that still grows",
-        ["Farm.SkipFullGrown"] = "Swaps a full grown pet for a growing one",
-        ["Farm.PreferNeon"] = "Growing neon pets are farmed first",
-        ["Farm.AutoPotions.Enabled"] = "Age potions on the farmed growing pet",
-        ["Farm.AutoNeon.Enabled"] = "4 full grown of one kind -> 1 neon",
-        ["Farm.BuyEgg"] = "No growing pet left: buys 1 egg (Bucks only)",
-        ["Farm.AutoOpen.Enabled"] = "Opens gifts and chests in your backpack",
-        ["Farm.Event.Enabled"] = "Master switch for every Halloween job",
-        ["Farm.Event.GhostGallery"] = "Joins each round, vacuums ghosts (Rusty Keys)",
-        ["Farm.Event.Hauntlet"] = "Auto Hauntlet — join runs, pick safer doors, use keys/items",
-        ["Farm.Event.HauntletMove"] = "How the bot reaches a door: tween (smooth), walk, or teleport",
-        ["Farm.Event.HauntletFirst"] = "A Hauntlet run comes first when a Ghost Gallery round is near",
-        ["Farm.Event.HauntletSquad"] = "Your accounts in one run take turns with phone / keys / wand",
-        ["Farm.Event.HauntletSquadKey"] = "Private: the worker's SQUAD_KEY, the same on all your alts (empty = nothing sent)",
-        ["Farm.Event.HauntletMoveSeconds"] = "Tween: seconds to reach a door (shorter = faster)",
-        ["Farm.Event.GhostJoinByZone"] = "Joins by standing in the Manor circle",
-        ["Farm.Event.Crypt"] = "Uses Rusty Keys on the grave going down",
-        ["Farm.Event.MummySpider"] = "Bottom of the Crypt: takes the spider",
-        ["Farm.Event.Quests"] = "Claims finished daily + board quests",
-        ["Farm.Event.HouseVisits"] = "Visit-homes quests: visits houses here",
-        ["Farm.Event.PigeonNest"] = "Puts Crypt Twigs into the Hotel nest",
-        ["Farm.Event.AutoNest"] = "Twig graves first until the nest is built",
-        ["Farm.Event.AutoSkelicorn"] = "Lightning Lever from the Crypt -> machine by the Manor -> 1 Skelicorn (120k candy)",
-        ["Farm.Event.StrayCat"] = "1 water to the Stray Cat a day (+candy)",
-        ["Farm.Event.PetPen"] = "Claims the pen, keeps it full (at home)",
-        ["Farm.Event.PetPenStock"] = "Buys eggs so the pen stays full",
-        ["Farm.Event.PetPenMinutes"] = "How often the pen is claimed",
-        ["Farm.Event.CandyPets.Enabled"] = "Saves candy for the pets in your list",
-        ["Farm.AntiAfk"] = "Clicks on Roblox's idle warning (also paused)",
-        ["Farm.AutoAcceptMenu"] = "Clicks Play on the main menu (also paused)",
-        ["Farm.CollectCashback"] = "Collects cashback Bucks (while running)",
-        ["Farm.AutoRejoin"] = "No place / character: rejoins a PUBLIC server",
-        ["Farm.StuckRejoinSeconds"] = "How long before that rejoin",
-        ["Farm.GameTravel"] = "Travels with the game's own doors",
-        ["Farm.HomeByRespawn"] = "Goes home by respawn (fastest)",
-        ["Farm.SpotTravel"] = "Route to camping / beach / playground",
-        ["Farm.FoodBowlTrip"] = "Goes home for the free bowl even with food",
-        ["Farm.PetOrder"] = "Which growing pet first: youngest / oldest",
-        ["Farm.EggToBuy"] = "Egg bought with Bucks (never Robux)",
-        ["Farm.FarmPetKinds"] = "Pet kinds farmed first, comma separated",
-        ["Farm.AutoPotions.PetKinds"] = "Potions only on these kinds (empty = any)",
-        ["Farm.SmartPriority"] = "Needs doable right here go first",
-        ["Farm.StuckRecovery.Enabled"] = "Not moving, tasks failing: respawn home",
-        ["Farm.StuckRecovery.Seconds"] = "How long before it counts as stuck",
-        ["Farm.DisableMinutes"] = "3 fails in a row: rest (0 = whole session)",
-        ["Farm.MaxBuysPerSession"] = "Max food / water buys (0 = no limit)",
-        ["Farm.MaxEggBuysPerSession"] = "Max egg buys (0 = no limit)",
-        ["Interface.Toasts"] = "Pop-ups for keys, neon, purchases, rounds",
-        ["Interface.Theme"] = "Window colours",
-        ["Interface.Descriptions"] = "These lines (the window opens again)",
-        ["Interface.StartHidden"] = "Starts closed: the key / paw button opens it",
-        ["Telemetry.Enabled"] = "Bug reports to the developer (off: at once)",
-        ["Farm.CashbackMinutes"] = "How often cashback is collected",
-        ["Farm.Event.PetPenSlots"] = "4 free slots; 5 with the extra-slot pass",
-        ["Farm.Event.PetPenStockMinBucks"] = "Buys pen eggs only above these Bucks",
-        ["Farm.MultiNeed.Kinds"] = "Which quick needs run beside a place need",
-        ["Farm.MultiNeed.GapSeconds"] = "Pause between two quick needs",
-        ["Farm.AutoNeon.Exclude"] = "Pet kinds that are never fused",
-        ["Farm.AutoOpen.Exclude"] = "Gifts / chests that are never opened",
-        ["Farm.AutoPotions.Potions"] = "Which age potions may be used",
-        ["Farm.FailureCooldownSeconds"] = "Wait after a failed task before a retry",
-        ["Farm.MaxConsecutiveFailures"] = "Fails in a row before a task rests",
-        ["Farm.HouseDoorExit"] = "Experimental: leave home by its door",
-        ["Farm.Event.CandyPets.KeepCandy"] = "Candy kept back, whatever the list wants",
-        ["Logging.ConsoleLevel"] = "How much the console shows (OFF = quiet)",
-        ["Telemetry.IncludeInventory"] = "Reports also list item / pet counts",
-        ["Interface.Keybind"] = "Key that hides / shows this window",
-        ["Notifications.SendOnStartStop"] = "Message when the farm starts / stops",
-        ["Notifications.SendOnTaskComplete"] = "One message per finished need (many)",
-        ["Notifications.SendOnError"] = "Message on this script's errors",
-        ["Notifications.SendOnKick"] = "Message on a kick / disconnect",
-        ["Notifications.IncludeUsername"] = "Your Roblox name in the messages",
-        ["Notifications.PingOn"] = "@mention you for these messages",
-    }
-    Interface.KEYBINDS = { "RightShift", "LeftShift", "RightControl", "LeftControl", "RightAlt", "LeftAlt", "Insert", "Home",
-        "End", "Delete", "PageUp", "PageDown", "F1", "F2", "F3", "F4", "F6", "F7", "F8", "F9", "K", "M", "P" }
-    Interface.CONSOLE_LEVELS = { "OFF", "ERROR", "WARN", "SUCCESS", "INFO", "DEBUG" }
     Interface.PING_FLAGS = { "Kick", "Error", "Summary", "TaskCompleted", "SessionStopped", "PreviousSession" }
-    Interface.QUICK_NEEDS = { "pet_me", "hungry", "thirsty", "play" }
-    Interface.AGE_POTIONS = { "pet_age_potion", "tiny_pet_age_potion" }
-    local NEED_DESCRIPTIONS = {
-        pet_me = "Pets your pet until the need is done", hungry = "Bowl at home, else your food; buys if on",
-        thirsty = "Your water / milk; buys 1 water if on", play = "Throws your squeaky bone",
-        sleepy = "Your bed at home (goes home)", dirty = "Your shower at home (goes home)",
-        toilet = "Your toilet at home (goes home)", walk = "Walks your character until done",
-        ride = "Walks with your stroller until done", mystery = "Picks a card this script can do",
-        salon = "Goes to the Salon and waits", cat_cafe = "Goes to the Cat Cafe and waits",
-        pizza_party = "Goes to the Pizza Shop and waits", school = "Goes to School and waits",
-        sick = "Hospital: talks to the doctor", camping = "Camp site spot on the map",
-        beach_party = "Beach spot on the map", bored = "Playground spot on the map",
+    Interface.PING_NAMES = {
+        Kick = "Kick / disconnect", Error = "Errors", Summary = "Summaries",
+        TaskCompleted = "Finished needs", SessionStopped = "Stopped",
+        PreviousSession = "Last run ended badly",
     }
-    for kind, text in pairs(NEED_DESCRIPTIONS) do
-        Interface.DESCRIPTIONS["Farm.Tasks." .. kind] = text
-    end
-    local function commas(value)
-        local number = tonumber(value)
-        if not number then
-            return "?"
-        end
-        local negative = number < 0
-        local text = tostring(math.floor(math.abs(number) + 0.5))
-        text = string.reverse((string.gsub(string.reverse(text), "(%d%d%d)", "%1,")))
-        text = string.gsub(text, "^,", "")
-        return (negative and "-" or "") .. text
-    end
-    Interface.commas = commas
-    local function prettyKind(kind)
-        kind = tostring(kind or "?")
-        kind = string.gsub(kind, "^halloween_2026_", "")
-        kind = string.gsub(kind, "^basic_egg_2022_", "")
-        return (string.gsub(kind, "_", " "))
-    end
-    local function clock(seconds)
-        seconds = math.max(0, math.floor(tonumber(seconds) or 0))
-        return string.format("%02d:%02d", math.floor(seconds / 60), seconds % 60)
-    end
-    local function fit(text, width)
-        text = tostring(text)
-        width = math.max(8, width or 64)
-        local length = utf8.len(text) or #text
-        if length <= width then
-            return text
-        end
-        local cut = utf8.offset(text, width - 2) or (width - 2)
-        return string.sub(text, 1, cut - 1) .. "..."
-    end
-    Interface.fit = fit
-    local function deepCopy(value)
-        if type(value) ~= "table" then
-            return value
-        end
+    Interface.KEYBINDS = {
+        "F1","F2","F3","F4","F5","F6","F7","F8","F9","F10","F11","F12",
+        "RightShift","LeftShift","RightControl","LeftControl","RightAlt","LeftAlt",
+        "Insert","Home","Delete","End","PageUp","PageDown",
+        "NumLock","Pause","ScrollLock","Backspace",
+    }
+    Interface.UI_SCALES = { "Auto", "0.5", "0.6", "0.7", "0.8", "0.9", "1", "1.1", "1.2", "1.3", "1.4", "1.5" }
+    Interface.PC_SIZE = { 900, 540 }
+    Interface.CONSOLE_LEVELS = { "Info", "Warn", "Error" }
+    Interface.DESCRIPTIONS = {}
+    Interface.DEVELOPER = {
+        name = "Shxdrag hub", user = "Shxdrag",
+        github = "https://github.com/", avatarUrl = "", avatarFile = "",
+    }
+    Interface.SAVE_PATH        = "ShxdragHub/window_settings.txt"
+    Interface.CONFIG_FOLDER    = "ShxdragHub/configs"
+    Interface.CONFIG_EXTENSION = ".cfg"
+    Interface.META_KEYS   = { ["Interface.Keybind"] = true, ["Interface.Theme"] = true, ["Interface.UIScale"] = true }
+    Interface.PRIVATE_KEYS = { ["Notifications.Webhooks.Summary"] = true, ["Notifications.Webhooks.Alerts"] = true,
+        ["Notifications.PingDiscordUserId"] = true }
+
+    -- ── Utility helpers (used by engine and UI) ───────────────────────────────
+    local function deepCopy(v)
+        if type(v) ~= "table" then return v end
         local copy = {}
-        for key, item in pairs(value) do
-            copy[key] = deepCopy(item)
-        end
+        for k, val in pairs(v) do copy[deepCopy(k)] = deepCopy(val) end
         return copy
     end
-    local function isStringList(value)
-        if type(value) ~= "table" then
-            return false
-        end
-        local count = 0
-        for key, item in pairs(value) do
-            if type(key) ~= "number" or type(item) ~= "string" then
-                return false
-            end
-            count += 1
-        end
-        return count == #value
-    end
     local function sameValue(a, b)
-        if type(a) == "table" and type(b) == "table" then
-            if #a ~= #b then
-                return false
-            end
-            for index = 1, #a do
-                if a[index] ~= b[index] then
-                    return false
-                end
-            end
-            return true
-        end
-        return a == b
-    end
-    function Interface.parseList(text)
-        local list = {}
-        for item in string.gmatch(tostring(text or ""), "[^,]+") do
-            item = string.match(item, "^%s*(.-)%s*$")
-            if item ~= "" and not table.find(list, item) then
-                table.insert(list, item)
-            end
-        end
-        return list
-    end
-    function Interface.buildTheme(themes, name)
-        local profile = Interface.THEME_PROFILES[name]
-        if not profile or not profile.accent or type(themes) ~= "table" then
-            return nil
-        end
-        if type(Color3) ~= "table" and type(Color3) ~= "userdata" or ColorSequence == nil or ColorSequenceKeypoint == nil then
-            return nil
-        end
-        local base = themes[profile.base] or themes.Starlight
-        if type(base) ~= "table" or type(base.Accents) ~= "table" then
-            return nil
-        end
-        local ok, theme = pcall(function()
-            local copy = deepCopy(base)
-            local function rgb(c)
-                return Color3.fromRGB(c[1], c[2], c[3])
-            end
-            local function sequence(colors)
-                local points = {}
-                for index, c in ipairs(colors) do
-                    table.insert(points, ColorSequenceKeypoint.new((index - 1) / math.max(1, #colors - 1), rgb(c)))
-                end
-                return ColorSequence.new(points)
-            end
-            copy.Accents.Main = sequence(profile.accent)
-            copy.Accents.Brighter = sequence(profile.bright or profile.accent)
-            if profile.backgrounds and type(copy.Backgrounds) == "table" then
-                for key, c in pairs(profile.backgrounds) do
-                    if copy.Backgrounds[key] ~= nil then
-                        copy.Backgrounds[key] = rgb(c)
-                    end
-                end
-            end
-            if profile.divider and type(copy.Miscellaneous) == "table" and copy.Miscellaneous.Divider ~= nil then
-                copy.Miscellaneous.Divider = rgb(profile.divider)
-            end
-            return copy
-        end)
-        return ok and theme or nil
-    end
-    function Interface.themeChoice(library, name)
-        local themes = type(library) == "table" and library.Themes
-        if type(themes) ~= "table" or type(name) ~= "string" then
-            return nil
-        end
-        local profile = Interface.THEME_PROFILES[name]
-        if profile then
-            local built = Interface.buildTheme(themes, name)
-            if built then
-                return built
-            end
-            for _, fallback in ipairs(profile.fallback) do
-                if themes[fallback] ~= nil then
-                    return fallback
-                end
-            end
-            return nil
-        end
-        return themes[name] ~= nil and name or nil
-    end
-    function Interface.press(signal)
-        return (pcall(function()
-            assert(signal ~= nil, "no button")
-            if type(firesignal) == "function" then
-                firesignal(signal)
-            elseif type(getconnections) == "function" then
-                local fired = false
-                for _, connection in ipairs(getconnections(signal)) do
-                    if type(connection.Fire) == "function" then
-                        connection:Fire()
-                        fired = true
-                    end
-                end
-                assert(fired, "no connection")
-            else
-                error("no firesignal")
-            end
-        end))
-    end
-    function Interface.openTab(tab)
-        local ok, signal = pcall(function()
-            return tab.Instances.Button.Interact.MouseButton1Click
-        end)
-        return ok and Interface.press(signal)
-    end
-    function Interface.hideWindow(instance)
-        local ok, signal = pcall(function()
-            local screen = instance:FindFirstAncestorOfClass("ScreenGui")
-            for _, item in ipairs(screen:GetDescendants()) do
-                if item.Name == "Minimize" and item.Parent and item.Parent.Name == "Controls" then
-                    return item.MouseButton1Click
-                end
-            end
-            return nil
-        end)
-        return ok and Interface.press(signal)
-    end
-    local function paletteColor(name)
-        local c = type(name) == "table" and name or Interface.PALETTE[name]
-        return c and Color3.fromRGB(c[1], c[2], c[3]) or nil
-    end
-    local function hexColor(name)
-        local c = Interface.PALETTE[name] or { 255, 255, 255 }
-        return string.format("#%02X%02X%02X", c[1], c[2], c[3])
-    end
-    local tintBase = setmetatable({}, { __mode = "k" })
-    local function isWhite(c)
-        return c.R >= 0.999 and c.G >= 0.999 and c.B >= 0.999
-    end
-    function Interface.tintFrame(frame, colors, fromAmount, toAmount, rotation, see)
-        local gradient = frame:FindFirstChild("AmeFarmGradient")
-        if not gradient then
-            if frame:FindFirstChildOfClass("UIGradient") then
-                return false
-            end
-            gradient = Instance.new("UIGradient")
-            gradient.Name = "AmeFarmGradient"
-            gradient.Parent = frame
-        end
-        local current = frame.BackgroundColor3
-        if not isWhite(current) then
-            tintBase[frame] = current
-        end
-        local base = tintBase[frame] or current
-        frame.BackgroundColor3 = Color3.new(1, 1, 1)
-        gradient.Color = ColorSequence.new(base:Lerp(paletteColor(colors[1]), fromAmount),
-            base:Lerp(paletteColor(colors[2] or colors[1]), toAmount))
-        gradient.Rotation = rotation or 0
-        if type(see) == "table" then
-            gradient.Transparency = NumberSequence.new(see[1], see[2] or see[1])
-        end
+        if type(a) ~= type(b) then return false end
+        if type(a) ~= "table" then return a == b end
+        for k, v in pairs(a) do if not sameValue(v, b[k]) then return false end end
+        for k in pairs(b) do if a[k] == nil then return false end end
         return true
     end
-    local innerWatched = setmetatable({}, { __mode = "k" })
-    function Interface.tintGroupbox(box, color)
-        local instance = type(box) == "table" and box.Instance
-        if not instance then
-            return false
-        end
-        local c = paletteColor(color)
-        local iconId = type(box.Values) == "table" and box.Values.Icon
-        instance.Header.Icon.ImageColor3 = Interface.gameIconIds[iconId] and Color3.new(1, 1, 1) or c
-        instance.Header.TextColor3 = c:Lerp(Color3.new(1, 1, 1), 0.45)
-        local backdrop = instance.PART_Backdrop
-        local stroke = backdrop:FindFirstChildOfClass("UIStroke")
-        if stroke then
-            stroke.Color = c
-            stroke.Transparency = 0.55
-        end
-        local inner = backdrop.Inner
-        inner.Size = UDim2.new(1, -2, 1, -2)
-        if not innerWatched[inner] then
-            innerWatched[inner] = true
-            instance.PART_Content:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-                task.defer(function()
-                    inner.Size = UDim2.new(1, -2, 1, -2)
-                end)
-            end)
-        end
-        Interface.tintFrame(inner, { color, color }, 0.16, 0, 90)
+    local function isStringList(v)
+        if type(v) ~= "table" then return false end
+        for i, item in ipairs(v) do if type(item) ~= "string" then return false end end
         return true
     end
-    Interface.DASHBOARD_LAYOUT = { leftWidth = 0.36, gap = 8, topHeight = 84 }
-    local function findCard(holder, name)
-        for _, side in ipairs(holder:GetChildren()) do
-            local card = side:FindFirstChild(name)
-            if card then
-                return card
-            end
-        end
-        return nil
+    local function countKeys(t)
+        local n = 0; for _ in pairs(t) do n += 1 end; return n
     end
-    function Interface.dashboardCards(homeTab)
-        local cards = {}
-        local page = homeTab.Instances.Page
-        for _, name in ipairs({ "Holder", "AmeFarmHolder" }) do
-            local holder = page:FindFirstChild(name)
-            for _, side in ipairs(holder and holder:GetChildren() or {}) do
-                if side:IsA("Frame") then
-                    for _, card in ipairs(side:GetChildren()) do
-                        if card:IsA("Frame") then
-                            table.insert(cards, card)
-                        end
-                    end
-                end
-            end
-        end
-        return cards
-    end
-    Interface.CARD_TINT = { from = 0.34, to = 0.05, rotation = 35, see = { 0.22, 0.42 } }
-    function Interface.paintDashboard(homeTab, overrides)
-        local painted, other = 0, 0
-        for _, card in ipairs(Interface.dashboardCards(homeTab)) do
-            local colors = overrides and overrides[card] or Interface.DASHBOARD_COLORS[card.Name]
-            if not colors then
-                other += 1
-                local name = DASHBOARD_ORDER[(other - 1) % #DASHBOARD_ORDER + 1]
-                colors = { name, name }
-            end
-            local tint = Interface.CARD_TINT
-            if Interface.tintFrame(card, colors, tint.from, tint.to, tint.rotation, tint.see) then
-                painted += 1
-            end
-        end
-        return painted
-    end
-    function Interface.findFarmCard(homeTab)
-        local ok, found = pcall(function()
-            for _, side in ipairs(homeTab.Instances.Page:FindFirstChild("Holder"):GetChildren()) do
-                if side:IsA("Frame") then
-                    for _, card in ipairs(side:GetChildren()) do
-                        if card:IsA("Frame") and not Interface.DASHBOARD_KNOWN[card.Name] then
-                            local words = { card.Name }
-                            for _, item in ipairs(card:GetDescendants()) do
-                                if item:IsA("TextLabel") then
-                                    table.insert(words, tostring(item.Text))
-                                end
-                            end
-                            local text = string.lower(table.concat(words, " "))
-                            if string.find(text, "account", 1, true) or string.find(text, "coming soon", 1, true) then
-                                return card
-                            end
-                        end
-                    end
-                end
-            end
-            return nil
-        end)
-        return ok and found or nil
-    end
-    function Interface.layoutDashboard(homeTab, farmCard)
-        local page = homeTab.Instances.Page
-        local done = page:FindFirstChild("AmeFarmHolder")
-        if done then
-            return done
-        end
-        local holder = page:FindFirstChild("Holder")
-        if not holder then
-            return nil
-        end
-        local discord, changelog, executor = findCard(holder, "Discord"), findCard(holder, "Changelog"), findCard(holder, "Executor")
-        if not (discord and changelog and executor and farmCard) then
-            return nil
-        end
-        local L = Interface.DASHBOARD_LAYOUT
-        local box = Instance.new("Frame")
-        box.Name = "AmeFarmHolder"
-        box.BackgroundTransparency = 1
-        box.BorderSizePixel = 0
-        box.AnchorPoint = holder.AnchorPoint
-        box.Position = holder.Position
-        box.Size = holder.Size
-        box.ZIndex = holder.ZIndex
-        box.LayoutOrder = holder.LayoutOrder
-        local function column(name, position, size)
-            local frame = Instance.new("Frame")
-            frame.Name = name
-            frame.BackgroundTransparency = 1
-            frame.BorderSizePixel = 0
-            frame.Position = position
-            frame.Size = size
-            frame.ZIndex = holder.ZIndex
-            local list = Instance.new("UIListLayout")
-            list.FillDirection = Enum.FillDirection.Vertical
-            list.SortOrder = Enum.SortOrder.LayoutOrder
-            list.Padding = UDim.new(0, L.gap)
-            list.Parent = frame
-            frame.Parent = box
-            return frame
-        end
-        local left = column("AmeFarmLeft", UDim2.new(0, 0, 0, 0), UDim2.new(L.leftWidth, -L.gap / 2, 1, 0))
-        local right = column("AmeFarmRight", UDim2.new(L.leftWidth, L.gap / 2, 0, 0), UDim2.new(1 - L.leftWidth, -L.gap / 2, 1, 0))
-        local top = UDim2.new(1, 0, 0, L.topHeight)
-        local rest = UDim2.new(1, 0, 1, -(L.topHeight + L.gap))
-        for _, entry in ipairs({ { discord, left, 1, top }, { changelog, left, 2, rest }, { executor, right, 1, top },
-            { farmCard, right, 2, rest } }) do
-            local card = entry[1]
-            card.AnchorPoint = Vector2.new(0, 0)
-            card.Position = UDim2.new(0, 0, 0, 0)
-            card.Size = entry[4]
-            card.LayoutOrder = entry[3]
-            card.Parent = entry[2]
-        end
-        box.Parent = page
-        holder.Visible = false
-        return box
-    end
-    Interface.CARD_ROW_HEIGHT = 20
-    local farmCardParts = setmetatable({}, { __mode = "k" })
-    function Interface.makeFarmCard(card)
-        if farmCardParts[card] then
-            return farmCardParts[card]
-        end
-        local header = card:FindFirstChild("Header")
-        if header then
-            header.Text = T("Farm status")
-        end
-        for _, item in ipairs(card:GetDescendants()) do
-            if item:IsA("TextLabel") and item ~= header and not (header and item:IsDescendantOf(header)) then
-                item.Visible = false
-            end
-        end
-        local top = 44
-        pcall(function()
-            local position, size, anchor = header.Position, header.Size, header.AnchorPoint
-            if position.Y.Scale == 0 and size.Y.Scale == 0 then
-                top = math.clamp(position.Y.Offset + (1 - anchor.Y) * size.Y.Offset + 10, 30, 70)
-            end
-        end)
-        local zIndex = header and header.ZIndex or 5
-        local function label(parent, name, position, size, textSize)
-            local text = Instance.new("TextLabel")
-            text.Name = name
-            text.BackgroundTransparency = 1
-            text.Position = position
-            text.Size = size
-            text.TextXAlignment = Enum.TextXAlignment.Left
-            text.TextYAlignment = Enum.TextYAlignment.Center
-            text.TextWrapped = false
-            text.TextTruncate = Enum.TextTruncate.AtEnd
-            text.RichText = true
-            text.TextSize = textSize
-            text.TextColor3 = Color3.fromRGB(240, 234, 250)
-            text.ZIndex = zIndex
-            pcall(function()
-                text.FontFace = header.FontFace
-            end)
-            text.Text = ""
-            text.Parent = parent
-            return text
-        end
-        local function column(name, position, size)
-            local frame = Instance.new("Frame")
-            frame.Name = name
-            frame.BackgroundTransparency = 1
-            frame.BorderSizePixel = 0
-            frame.Position = position
-            frame.Size = size
-            frame.ZIndex = zIndex
-            local list = Instance.new("UIListLayout")
-            list.FillDirection = Enum.FillDirection.Vertical
-            list.SortOrder = Enum.SortOrder.LayoutOrder
-            list.Padding = UDim.new(0, 2)
-            list.Parent = frame
-            frame.Parent = card
-            return frame
-        end
-        local state = label(card, "AmeFarmLive", UDim2.new(0, 16, 0, top), UDim2.new(1, -32, 0, 20), 14)
-        local facts = column("AmeFarmFacts", UDim2.new(0, 16, 0, top + 30), UDim2.new(0.5, -20, 1, -(top + 38)))
-        local dots = column("AmeFarmDots", UDim2.new(0.5, 4, 0, top + 30), UDim2.new(0.5, -20, 1, -(top + 38)))
-        local rows = {}
-        for index, row in ipairs(Interface.statusRows(nil, 30)) do
-            local line = Instance.new("Frame")
-            line.Name = "Row_" .. row.key
-            line.BackgroundTransparency = 1
-            line.BorderSizePixel = 0
-            line.LayoutOrder = index
-            line.Size = UDim2.new(1, 0, 0, Interface.CARD_ROW_HEIGHT)
-            line.ZIndex = zIndex
-            local icon = Instance.new("ImageLabel")
-            icon.Name = "Icon"
-            icon.BackgroundTransparency = 1
-            icon.AnchorPoint = Vector2.new(0, 0.5)
-            icon.Position = UDim2.new(0, 0, 0.5, 0)
-            icon.Size = UDim2.new(0, 16, 0, 16)
-            icon.ScaleType = Enum.ScaleType.Fit
-            icon.ZIndex = zIndex
-            icon.Parent = line
-            local offset = 22
-            local text = label(line, "Text", UDim2.new(0, offset, 0, 0), UDim2.new(1, -offset, 1, 0), 13)
-            line.Parent = row.dot and dots or facts
-            rows[row.key] = { text = text, icon = icon, color = Interface.ROW_COLORS[row.key] or "moon", lucide = row.icon,
-                game = row.game, dot = row.dot }
-        end
-        local parts = { state = state, rows = rows }
-        farmCardParts[card] = parts
-        return parts
-    end
-    Interface.ROW_COLORS = { last = "pumpkin", pet = "candy", session = "teal", bucks = "slime", candy = "candy",
-        tasks = "moon", doing = "pumpkin", needs = "slime", ghost = "ghost", pen = "green", off = "blood" }
-    local function escapeRich(text)
-        return (string.gsub(tostring(text), "[&<>]", { ["&"] = "&amp;", ["<"] = "&lt;", [">"] = "&gt;" }))
-    end
-    function Interface.farmCardRows(status, width)
-        width = width or 30
-        local s = type(status) == "table" and status or {}
-        local title, _, state = Interface.stateHeader(s)
-        local line = title .. (tonumber(s.featuresOn) and (" • " .. T("%d/%d features on", s.featuresOn,
-            tonumber(s.featuresTotal) or 0)) or "") .. (s.preset and (" • " .. Lang.tr(tostring(s.preset))) or "")
-        local rows = {}
-        for _, row in ipairs(Interface.statusRows(s, width)) do
-            local text = escapeRich(row.text)
-            local name, value = string.match(text, "^(.-:)(.*)$")
-            table.insert(rows, { key = row.key, dot = row.dot == true, icon = row.icon, state = row.state,
-                text = name and string.format('<font color="%s"><b>%s</b></font>%s', hexColor(Interface.ROW_COLORS[row.key]
-                    or "moon"), name, value) or text })
-        end
-        return string.format('<font color="%s">●</font>  <b>%s</b>', hexColor(Interface.STATE_COLORS[state] or "gray"),
-            escapeRich(fit(line, width * 2))), rows, state
-    end
-    function Interface.fillFarmCard(parts, status, icons)
-        local state, rows = Interface.farmCardRows(status, 30)
-        parts.state.Text = state
-        for _, row in ipairs(rows) do
-            local slot = parts.rows[row.key]
-            if slot then
-                slot.text.Text = row.text
-                if slot.icon then
-                    local picture = not row.dot and type(icons) == "table" and type(icons[row.key]) == "string" and icons[row.key]
-                        or nil
-                    local own = ICON_IDS[slot.lucide]
-                    slot.icon.Image = picture or (own and ("rbxassetid://" .. own) or "")
-                    local color = row.dot and (Interface.STATE_COLORS[row.state] or "gray") or slot.color
-                    slot.icon.ImageColor3 = picture and Color3.new(1, 1, 1) or paletteColor(color)
-                end
-            end
-        end
-    end
-    Interface.SERVER_CHIPS = {
-        { key = "players", color = "slime", icon = "users" }, { key = "latency", color = "teal", icon = "wifi" },
-        { key = "region", color = "moon", icon = "globe" }, { key = "uptime", color = "witch", icon = "timer" },
-        { key = "join", color = "pumpkin", button = true, icon = "copy" },
-    }
-    function Interface.serverStrip(homeTab)
-        local page = homeTab.Instances.Page
-        local anchor = page:FindFirstChild("playerUser")
-        if not anchor or page:FindFirstChild("AmeFarmServer") then
-            return nil
-        end
-        local position, size, point = anchor.Position, anchor.Size, anchor.AnchorPoint
-        local strip = Instance.new("Frame")
-        strip.Name = "AmeFarmServer"
-        strip.BackgroundTransparency = 1
-        strip.BorderSizePixel = 0
-        strip.AnchorPoint = Vector2.new(0, 0)
-        strip.Position = UDim2.new(position.X.Scale - point.X * size.X.Scale, position.X.Offset - point.X * size.X.Offset,
-            position.Y.Scale + (1 - point.Y) * size.Y.Scale, position.Y.Offset + (1 - point.Y) * size.Y.Offset + 6)
-        strip.Size = UDim2.new(0, 620, 0, 22)
-        strip.ZIndex = anchor.ZIndex
-        local list = Instance.new("UIListLayout")
-        list.FillDirection = Enum.FillDirection.Horizontal
-        list.SortOrder = Enum.SortOrder.LayoutOrder
-        list.VerticalAlignment = Enum.VerticalAlignment.Center
-        list.Padding = UDim.new(0, 12)
-        list.Parent = strip
-        local chips = {}
-        for index, chip in ipairs(Interface.SERVER_CHIPS) do
-            local holder = Instance.new(chip.button and "TextButton" or "Frame")
-            if chip.button then
-                holder.Text = ""
-                holder.AutoButtonColor = true
-                chips[chip.key .. "Button"] = holder
-            end
-            holder.Name = "AmeFarm_" .. chip.key
-            holder.LayoutOrder = index
-            holder.AutomaticSize = Enum.AutomaticSize.X
-            holder.Size = UDim2.new(0, 0, 1, 0)
-            holder.BackgroundTransparency = 1
-            holder.BorderSizePixel = 0
-            holder.ZIndex = anchor.ZIndex
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(0, 6)
-            corner.Parent = holder
-            local padding = Instance.new("UIPadding")
-            padding.PaddingLeft = UDim.new(0, 0)
-            padding.PaddingRight = UDim.new(0, 6)
-            padding.Parent = holder
-            local row = Instance.new("UIListLayout")
-            row.FillDirection = Enum.FillDirection.Horizontal
-            row.SortOrder = Enum.SortOrder.LayoutOrder
-            row.VerticalAlignment = Enum.VerticalAlignment.Center
-            row.Padding = UDim.new(0, 5)
-            row.Parent = holder
-            local icon = Instance.new("ImageLabel")
-            icon.Name = "Icon"
-            icon.BackgroundTransparency = 1
-            icon.Size = UDim2.new(0, 14, 0, 14)
-            icon.LayoutOrder = 1
-            icon.ScaleType = Enum.ScaleType.Fit
-            icon.Image = ICON_IDS[chip.icon] and ("rbxassetid://" .. ICON_IDS[chip.icon]) or ""
-            icon.ImageColor3 = paletteColor(chip.color):Lerp(Color3.new(1, 1, 1), 0.15)
-            icon.ZIndex = anchor.ZIndex
-            icon.Parent = holder
-            local label = Instance.new("TextLabel")
-            label.Name = "Text"
-            label.LayoutOrder = 2
-            label.AutomaticSize = Enum.AutomaticSize.X
-            label.Size = UDim2.new(0, 0, 1, 0)
-            label.BackgroundTransparency = 1
-            label.TextColor3 = Color3.fromRGB(226, 220, 236)
-            label.TextSize = 12
-            label.ZIndex = anchor.ZIndex
-            label.Text = ""
-            pcall(function()
-                label.FontFace = anchor.FontFace
-            end)
-            label.Parent = holder
-            holder.Parent = strip
-            chips[chip.key] = label
-        end
-        strip.Parent = page
-        return chips, strip
-    end
-    local function duration(seconds)
-        seconds = math.max(0, math.floor(tonumber(seconds) or 0))
-        if seconds >= 3600 then
-            return string.format("%dh %dm", seconds // 3600, (seconds % 3600) // 60)
-        elseif seconds >= 60 then
-            return string.format("%dm", seconds // 60)
-        end
-        return seconds .. "s"
-    end
-    function Interface.serverChipTexts(info)
-        local i = type(info) == "table" and info or {}
-        return {
-            players = T("%s/%s players", tostring(i.players or "?"), tostring(i.maxPlayers or "?")),
-            latency = T("%s FPS • %s ms", tostring(i.fps or "?"), tostring(i.ping or "?")),
-            region = (Lang.flag(i.region) ~= "" and (Lang.flag(i.region) .. " ") or "") .. tostring(i.region or "?"),
-            uptime = T("server %s", i.uptime and duration(i.uptime) or "?"),
-            join = T("Join script"),
-        }
-    end
-    function Interface.clearStrip(strip, box)
-        local overlap = strip.AbsolutePosition.Y + strip.AbsoluteSize.Y + 6 - box.AbsolutePosition.Y
-        if overlap > 0 and overlap < 80 then
-            local a = box.AnchorPoint.Y
-            box.Position = box.Position + UDim2.new(0, 0, 0, (1 - a) * overlap)
-            box.Size = box.Size - UDim2.new(0, 0, 0, overlap)
-            return overlap
-        end
-        return 0
-    end
-    Interface.SAVE_PATH = "AdoptMeFarm/window_settings.txt"
-    Interface.NOT_SAVED = {}
-    Interface.SAVED_OTHERS = { ["Interface.Toasts"] = true, ["Interface.Theme"] = true, ["Interface.Descriptions"] = true,
-        ["Interface.Keybind"] = true, ["Telemetry.Enabled"] = true, ["Telemetry.IncludeInventory"] = true,
-        ["Logging.ConsoleLevel"] = true, ["Notifications.SendOnStartStop"] = true, ["Notifications.SendOnTaskComplete"] = true,
-        ["Notifications.SendOnError"] = true, ["Notifications.SendOnKick"] = true, ["Notifications.IncludeUsername"] = true,
-        ["Notifications.Enabled"] = true, ["Notifications.Webhooks.Summary"] = true, ["Notifications.Webhooks.Alerts"] = true,
-        ["Notifications.PingDiscordUserId"] = true, ["Notifications.Ping"] = true, ["Notifications.SendSummary"] = true,
-        ["Notifications.SummaryIntervalMinutes"] = true,
-        ["Interface.RememberSettings"] = true, ["Interface.Autoload"] = true, ["Interface.StartHidden"] = true,
-        ["Interface.Language"] = true, ["Interface.UIScale"] = true }
-    Interface.META_KEYS = { ["Interface.RememberSettings"] = true, ["Interface.Autoload"] = true }
-    Interface.PRIVATE_KEYS = { ["Notifications.Webhooks.Summary"] = true, ["Notifications.Webhooks.Alerts"] = true,
-        ["Notifications.PingDiscordUserId"] = true, ["Notifications.Enabled"] = true,
-        ["Farm.Event.HauntletSquadKey"] = true }
-    Interface.CONFIG_FOLDER = "AdoptMeFarm/configs"
-    Interface.CONFIG_EXTENSION = ".cfg"
-    for _, flag in ipairs(Interface.PING_FLAGS) do
-        Interface.SAVED_OTHERS["Notifications.PingOn." .. flag] = true
-    end
-    Interface.saved = { changes = {}, originals = {} }
-    function Interface.resolve(root, path)
-        local node = root
-        for index = 1, #path - 1 do
-            if type(node) ~= "table" then
-                return nil
-            end
-            local segment = path[index]
-            local child = node[segment]
-            if child == nil and type(segment) == "string" and node[1] ~= nil then
-                for _, entry in ipairs(node) do
-                    if type(entry) == "table" and entry.id == segment then
-                        child = entry
-                        break
-                    end
-                end
-            end
-            node = child
-        end
-        if type(node) ~= "table" then
-            return nil
-        end
-        return node, path[#path]
+    local function prettyKind(kind)
+        if type(kind) ~= "string" then return tostring(kind) end
+        local s = string.gsub(kind, "_", " ")
+        return string.upper(string.sub(s, 1, 1)) .. string.sub(s, 2)
     end
     local function splitPath(key)
-        return string.split(key, ".")
+        local parts = {}
+        for segment in string.gmatch(key, "[^.]+") do table.insert(parts, segment) end
+        return parts
     end
+
+    function Interface.resolve(config, path)
+        local tbl = config
+        for i = 1, #path - 1 do
+            if type(tbl) ~= "table" then return nil, nil end
+            tbl = tbl[path[i]]
+        end
+        return tbl, path[#path]
+    end
+
     function Interface.canSave(key)
-        if type(key) ~= "string" or Interface.NOT_SAVED[key] then
-            return false
-        end
-        return string.sub(key, 1, 5) == "Farm." or Interface.SAVED_OTHERS[key] == true
+        return type(key) == "string" and key ~= ""
     end
-    function Interface.encodeSaved(changes, header)
-        local keys = {}
-        for key in pairs(changes) do
-            table.insert(keys, key)
+
+    -- ── Saved-settings helpers ────────────────────────────────────────────────
+    Interface.saved = { changes = {}, originals = {} }
+
+    function Interface.encodeSaved(changes)
+        local parts = {}
+        for k, v in pairs(changes) do
+            local encoded = type(v) == "table"
+                and ("[" .. table.concat(v, ",") .. "]")
+                or tostring(v)
+            table.insert(parts, k .. "=" .. encoded)
         end
-        table.sort(keys)
-        local lines = header or {
-            "# AdoptMe Farm: the settings you changed in the window. Applied at every start, over the loader's settings.",
-            "# To forget them: Config > Settings > Reset to loader settings (or delete this file).",
-        }
-        for _, key in ipairs(keys) do
-            local value = changes[key]
-            local kind, text
-            if type(value) == "boolean" then
-                kind, text = "bool", tostring(value)
-            elseif type(value) == "number" then
-                kind, text = "number", tostring(value)
-            elseif type(value) == "string" then
-                kind, text = "text", value
-            elseif isStringList(value) then
-                kind, text = "list", table.concat(value, ",")
-            end
-            if kind and Interface.canSave(key) and not string.find(text, "[\t\r\n]") then
-                table.insert(lines, key .. "\t" .. kind .. "\t" .. text)
-            end
-        end
-        return table.concat(lines, "\n") .. "\n"
+        table.sort(parts)
+        return table.concat(parts, "\n")
     end
-    function Interface.decodeSaved(text)
-        local changes = {}
-        for line in string.gmatch(tostring(text or ""), "[^\r\n]+") do
-            local key, kind, raw = string.match(line, "^([%w_%.]+)\t(%a+)\t(.*)$")
-            local value
-            if kind == "bool" then
-                if raw == "true" then
-                    value = true
-                elseif raw == "false" then
-                    value = false
-                end
-            elseif kind == "number" then
-                value = tonumber(raw)
-                if value and (value ~= value or math.abs(value) > 1e9) then
-                    value = nil
-                end
-            elseif kind == "text" then
-                value = #raw <= 200 and raw or nil
-            elseif kind == "list" then
-                value = {}
-                for item in string.gmatch(raw, "[^,]+") do
-                    table.insert(value, item)
-                end
-                if #value > 40 then
-                    value = nil
-                end
-            end
-            if key and value ~= nil then
-                changes[key] = value
-            end
-        end
-        return changes
+
+    function Interface.writeSaved(changes, enabled)
+        if not enabled then return end
+        pcall(function()
+            local folder = string.match(Interface.SAVE_PATH, "^(.+)/[^/]+$")
+            if folder and not isfolder(folder) then makefolder(folder) end
+            writefile(Interface.SAVE_PATH, Interface.encodeSaved(changes))
+        end)
     end
-    local function applyValues(config, values, saved)
-        local applied, skipped = 0, 0
-        for key, value in pairs(values) do
-            local fits = false
-            if Interface.canSave(key) then
-                local tbl, leaf = Interface.resolve(config, splitPath(key))
-                if type(tbl) == "table" then
-                    local current = tbl[leaf]
-                    if type(value) == "table" then
-                        fits = isStringList(current) and isStringList(value)
-                    else
-                        fits = current ~= nil and type(current) == type(value)
-                    end
-                    if fits then
-                        if saved.originals[key] == nil then
-                            saved.originals[key] = deepCopy(current)
-                        end
-                        saved.changes[key] = deepCopy(value)
-                        tbl[leaf] = deepCopy(value)
-                    end
-                end
-            end
-            if fits then
-                applied += 1
-            else
-                skipped += 1
-            end
-        end
-        return applied, skipped
-    end
+
     function Interface.applySaved(config, logger)
-        local saved = { changes = {}, originals = {} }
-        Interface.saved = saved
-        local okRead, text = pcall(function()
-            return isfile(Interface.SAVE_PATH) and readfile(Interface.SAVE_PATH) or nil
-        end)
-        local applied, skipped = 0, 0
-        if okRead and type(text) == "string" then
-            applied, skipped = applyValues(config, Interface.decodeSaved(text), saved)
-            if logger and (applied > 0 or skipped > 0) then
-                logger:info("Interface", string.format("Your window settings: %d applied over the loader's%s (%s)", applied,
-                    skipped > 0 and string.format(", %d skipped (not a setting of this version)", skipped) or "",
-                    Interface.SAVE_PATH))
-            end
-        end
-        local autoload = config.Interface and config.Interface.Autoload
-        if type(autoload) == "string" and autoload ~= "" then
-            local values = Interface.readConfig(autoload)
-            if values then
-                local count = applyValues(config, values, saved)
-                applied += count
-                if logger then
-                    logger:info("Interface", string.format("Autoload: config '%s' (%d settings)", autoload, count))
-                end
-            elseif logger then
-                logger:warn("Interface", "Autoload: no config called '" .. autoload .. "' (Config tab)")
-            end
-        end
-        return applied
-    end
-    function Interface.writeSaved(changes, rememberAll)
-        local keep = changes
-        if rememberAll == false then
-            keep = {}
-            for key, value in pairs(changes) do
-                if Interface.META_KEYS[key] then
-                    keep[key] = value
+        local ok, count = pcall(function()
+            local raw = isfile(Interface.SAVE_PATH) and readfile(Interface.SAVE_PATH) or nil
+            if not raw or raw == "" then return 0 end
+            local n = 0
+            for line in string.gmatch(raw, "[^\n]+") do
+                local key, val = string.match(line, "^([^=]+)=(.*)$")
+                if key then
+                    local path = splitPath(key)
+                    local tbl, leaf = Interface.resolve(config, path)
+                    if type(tbl) == "table" and tbl[leaf] ~= nil then
+                        local current = tbl[leaf]
+                        if type(current) == "boolean" then
+                            tbl[leaf] = (val == "true")
+                        elseif type(current) == "number" then
+                            local num = tonumber(val)
+                            if num then tbl[leaf] = num end
+                        elseif type(current) == "string" then
+                            tbl[leaf] = val
+                        elseif type(current) == "table" then
+                            local list = {}
+                            for item in string.gmatch(string.gsub(val, "^%[(.*)%]$", "%1"), "[^,]+") do
+                                table.insert(list, item)
+                            end
+                            tbl[leaf] = list
+                        end
+                        n += 1
+                    end
                 end
             end
-        end
-        return pcall(function()
-            if isfolder and makefolder and not isfolder("AdoptMeFarm") then
-                makefolder("AdoptMeFarm")
-            end
-            writefile(Interface.SAVE_PATH, Interface.encodeSaved(keep))
+            return n
         end)
+        return ok and count or 0
     end
-    function Interface.configName(text)
-        local name = string.match(tostring(text or ""), "^%s*(.-)%s*$")
-        name = string.gsub(name, "[^%w _%-]", "")
-        return string.sub(name, 1, 30)
-    end
+
+    -- ── Config file helpers ───────────────────────────────────────────────────
     function Interface.configPath(name)
         return Interface.CONFIG_FOLDER .. "/" .. name .. Interface.CONFIG_EXTENSION
     end
+
     function Interface.listConfigs()
-        local names = {}
+        local list = {}
         pcall(function()
+            if not isfolder(Interface.CONFIG_FOLDER) then return end
             for _, file in ipairs(listfiles(Interface.CONFIG_FOLDER)) do
-                local name = string.match(tostring(file), "([^/\\]+)%.cfg$")
-                if name then
-                    table.insert(names, name)
-                end
+                local name = string.match(file, "([^/\\]+)" .. Interface.CONFIG_EXTENSION .. "$")
+                if name then table.insert(list, name) end
             end
         end)
-        table.sort(names)
-        return names
+        table.sort(list)
+        return list
     end
+
+    function Interface.configName(raw)
+        return string.match(tostring(raw or ""), "^%s*(.-)%s*$"):gsub("[/\\:*?\"<>|]", "")
+    end
+
     function Interface.writeConfig(name, values)
-        name = Interface.configName(name)
-        if name == "" then
-            return false, "Type a name first"
-        end
-        local keep = {}
-        for key, value in pairs(values) do
-            if Interface.canSave(key) and not Interface.PRIVATE_KEYS[key] and not Interface.META_KEYS[key] then
-                keep[key] = value
-            end
-        end
         local ok, err = pcall(function()
-            for _, folder in ipairs({ "AdoptMeFarm", Interface.CONFIG_FOLDER }) do
-                if isfolder and makefolder and not isfolder(folder) then
-                    makefolder(folder)
-                end
+            for _, folder in ipairs({ "ShxdragHub", Interface.CONFIG_FOLDER }) do
+                if not isfolder(folder) then makefolder(folder) end
             end
-            writefile(Interface.configPath(name), Interface.encodeSaved(keep, {
-                "# AdoptMe Farm config '" .. name .. "' (Config tab: Load / Overwrite / Delete).",
-            }))
+            writefile(Interface.configPath(name), Interface.encodeSaved(values))
         end)
-        return ok, ok and name or tostring(err)
+        return ok, err
     end
+
     function Interface.readConfig(name)
-        name = Interface.configName(name)
-        local ok, text = pcall(function()
-            return isfile(Interface.configPath(name)) and readfile(Interface.configPath(name)) or nil
+        local ok, result = pcall(function()
+            local raw = readfile(Interface.configPath(name))
+            local values = {}
+            for line in string.gmatch(raw, "[^\n]+") do
+                local key, val = string.match(line, "^([^=]+)=(.*)$")
+                if key then values[key] = val end
+            end
+            return values
         end)
-        if not ok or type(text) ~= "string" then
-            return nil
-        end
-        return Interface.decodeSaved(text)
+        return ok and result or nil
     end
+
     function Interface.deleteConfig(name)
-        name = Interface.configName(name)
-        return pcall(function()
-            delfile(Interface.configPath(name))
-        end)
+        pcall(function() delfile(Interface.configPath(name)) end)
     end
-    local function countKeys(map)
-        local count = 0
-        for _ in pairs(map) do
-            count += 1
-        end
-        return count
-    end
+
+    -- ── Status helpers (used by engine ticker) ────────────────────────────────
     function Interface.stateHeader(status)
-        local s = type(status) == "table" and status or {}
-        local on, total = tonumber(s.featuresOn), tonumber(s.featuresTotal)
-        local features = on and T("%d of %d features on", on, total or 0) or nil
-        local preset = s.preset and (" • " .. T("preset %s", Lang.tr(tostring(s.preset)))) or ""
-        if s.stopped then
-            return T("FARM: STOPPED"), T("Everything stopped. Run the loader again to start."), "bad"
-        elseif not s.farmEnabled then
-            if on == 0 then
-                return T("FARM: OFF"), T("Nothing is on yet: switch features on (Main / Event) or pick a preset (Config), "
-                    .. "then switch Farm running on."), "off"
-            end
-            return T("FARM: OFF"), T("Paused: no game actions.") .. (features and (" " .. features .. preset .. ".") or "")
-                .. " " .. T("Switch Farm running on to start."), "off"
-        elseif not s.ready then
-            return T("FARM: ON"), T("Waiting for the game to load...") .. (features and (" " .. features) or ""), "wait"
-        elseif on == 0 then
-            return T("FARM: ON"), T("Running, but no feature is on: pick a preset or switch features on."), "wait"
+        if type(status) ~= "table" then
+            return "Farm status", "Waiting for first status...", "gray"
         end
-        return T("FARM: ON"), T("Running") .. (features and (" • " .. features) or "") .. preset, "on"
+        if status.stopped then
+            return "Farm stopped", status.stopReason or "Stopped", "stopped"
+        end
+        if not status.farmEnabled then
+            return "Farm paused", "Toggle 'Farm running' to start", "paused"
+        end
+        if not status.ready then
+            return "Starting up", "Loading game data...", "starting"
+        end
+        if status.featuresOn == 0 then
+            return "No features on", "Turn on at least one task below", "idle"
+        end
+        local task = status.currentTask
+        if type(task) == "string" and task ~= "" then
+            return "Running", task, "running"
+        end
+        return "Running", "Waiting for next task...", "running"
     end
-    Interface.STATE_COLORS = { on = "green", wait = "moon", bad = "blood", off = "gray" }
+
     function Interface.statusRows(status, width)
-        local s = type(status) == "table" and status or {}
-        local running = not s.stopped and s.farmEnabled
-        local function word(id)
-            return Lang.tr((string.gsub(tostring(id), "_", " ")))
+        if type(status) ~= "table" then return {} end
+        local rows = {}
+        local function row(key, icon, text, game)
+            table.insert(rows, { key = key, icon = icon, text = text, game = game })
         end
-        local task = tostring(s.task or "none")
-        local doing, doingState
-        if not running then
-            doing, doingState = T(s.stopped and "Doing: nothing (stopped)" or "Doing: nothing (paused)"), "off"
-        elseif task == "none" then
-            doing, doingState = T("Doing: nothing to do right now"), "wait"
-        else
-            doing, doingState = T("Doing: %s", word(task)), "on"
+        if type(status.tasksDone) == "number" then
+            row("done", "badge-check", "Done: " .. tostring(status.tasksDone))
         end
-        if s.sideTask and running then
-            doing = doing .. " + " .. Lang.tr(tostring(s.sideTask))
+        if type(status.bucks) == "number" then
+            row("bucks", "game:bucks", "Bucks: " .. tostring(status.bucks), "game:bucks")
         end
-        local pets = {}
-        for _, pet in ipairs(type(s.pets) == "table" and s.pets or {}) do
-            table.insert(pets, T("%s (age %s)", prettyKind(pet.kind), tostring(pet.age or "?")))
-        end
-        local needs = {}
-        for _, need in ipairs(type(s.needs) == "table" and s.needs or {}) do
-            local name = word(need.kind)
-            table.insert(needs, (need.owner == "baby" and T("baby %s", name) or name) .. (need.inProgress and " ●" or ""))
-        end
-        local function needsLine(count)
-            local rest = #needs - count
-            return T("Needs: %s", table.concat(needs, ", ", 1, count) .. (rest > 0 and (" +" .. rest) or ""))
-        end
-        local count = math.min(#needs, 4)
-        while count > 1 and (utf8.len(needsLine(count)) or 0) > (width or 64) do
-            count -= 1
-        end
-        local needsText = #needs > 0 and needsLine(count) or T("Needs: none")
-        local ghost, ghostState
-        if s.ghostEnabled == false then
-            ghost, ghostState = T("Ghost Gallery: off"), "off"
-        elseif s.nextRoundIn then
-            ghost, ghostState = T("Ghost Gallery: in %s", clock(s.nextRoundIn)), "on"
-        else
-            ghost, ghostState = T("Ghost Gallery: waiting"), "wait"
-        end
-        local penText, penState
-        local pen = type(s.pen) == "table" and s.pen or nil
-        if s.petPenEnabled == false then
-            penText, penState = T("Pet Pen: off"), "off"
-        elseif pen and pen.known then
-            local pets, slots = tonumber(pen.pets) or 0, tonumber(pen.slots) or 4
-            if (tonumber(pen.nextClaimIn) or 0) > 0 then
-                penText = T("Pet Pen: %d/%d • claim %s", pets, slots, clock(pen.nextClaimIn))
-            else
-                penText = T("Pet Pen: %d/%d • claim now", pets, slots)
-            end
-            penState = "on"
-        else
-            penText, penState = T("Pet Pen: no data yet"), "wait"
-        end
-        local off = {}
-        for _, key in ipairs(type(s.disabled) == "table" and s.disabled or {}) do
-            local minutes = type(s.restMinutes) == "table" and s.restMinutes[key]
-            table.insert(off, minutes and T("%s (%d min)", word(key), minutes) or word(key))
-        end
-        local rows = {
-            { key = "last", icon = "history", text = T("Last done: %s", s.lastTask and word(s.lastTask) or T("nothing yet")) },
-            { key = "pet", icon = "paw-print", text = T("Pet: %s", #pets > 0 and table.concat(pets, ", ") or T("none equipped")) },
-            { key = "session", icon = "timer", text = T("Session: %d min • %s needs", s.minutes or 0, commas(s.needsDone or 0)) },
-            { key = "bucks", icon = "banknote", game = "game:bucks",
-                text = T("Bucks: %s (+%s)", commas(s.bucks), commas(s.bucksEarned or 0)) },
-            { key = "candy", icon = "candy", game = "game:candy",
-                text = T("Candy: %s (+%s)", commas(s.candy), commas(s.candyEarned or 0)) },
-            { key = "tasks", icon = "badge-check", text = T("Tasks: %s done • %s failed", commas(s.tasksSucceeded or 0),
-                commas(s.tasksFailed or 0)) },
-            { key = "doing", icon = "zap", text = doing, dot = true, state = doingState },
-            { key = "needs", icon = "list-checks", text = needsText, dot = true, state = #needs > 0 and "wait" or "on" },
-            { key = "ghost", icon = "ghost", text = ghost, dot = true, state = ghostState },
-            { key = "pen", icon = "fence", text = penText, dot = true, state = penState },
-            { key = "off", icon = "circle-pause", dot = true, state = #off > 0 and "bad" or "on",
-                text = #off > 0 and T("Resting: %s", table.concat(off, ", ")) or T("Resting: none") },
-        }
-        for _, row in ipairs(rows) do
-            row.text = fit(row.text, width or 64)
+        if type(status.uptime) == "number" then
+            local m = math.floor(status.uptime / 60)
+            local s = status.uptime % 60
+            row("uptime", "timer", string.format("Uptime: %d:%02d", m, s))
         end
         return rows
     end
-    local FEED_INFO = { Event = true, Minigame = true }
-    local FEED_MARK = { SUCCESS = "✅", WARN = "⚠️", ERROR = "❌" }
-    Interface.FEED_LINES = 8
-    function Interface.activityLine(level, category, message, stamp)
-        level, category, message = tostring(level), tostring(category), tostring(message)
-        if level == "DEBUG" or category == "Disclosure" or category == "Status" then
-            return nil
-        end
-        if level == "INFO" and not FEED_INFO[category] and not (category == "Tasks" and string.find(message, "^Start: ")) then
-            return nil
-        end
-        message = string.gsub(message, "halloween_2026_", "")
-        message = string.gsub(message, "_", " ")
-        return (stamp and (stamp .. "  ") or "") .. (FEED_MARK[level] or "•") .. " " .. fit(message, 90)
-    end
-    Interface.HIDDEN = {
-        ["Farm.Tasks"] = "one Auto needs switch + a pick list of needs to skip",
-        ["Farm.MultiNeed"] = "always on: it only works while a place need waits",
-        ["Farm.BuyWater"] = "always on: 1 item, only when a need has nothing to use",
-        ["Farm.BuyFood"] = "always on: 1 item, only when a need has nothing to use",
-        ["Farm.MaxBuysPerSession"] = "no limit (1 item at a time, only when needed)",
-        ["Farm.Priority"] = "the farm orders needs itself (short ones first, the ones doable here first)",
-        ["Farm.SkipFullGrown"] = "part of Auto pet",
-        ["Farm.AutoPotions.PetKinds"] = "Use potions = on the farmed growing pet",
-        ["Farm.AutoPotions.Potions"] = "the farming potions; the window's 'Don't use' list picks from it",
-        ["Farm.AutoNeon.Exclude"] = "Auto neon fuses every kind",
-        ["Farm.AutoOpen.Exclude"] = "Open gifts opens every gift / chest",
-        ["Farm.Event.Enabled"] = "every event job has its own switch",
-        ["Farm.Event.MummySpider"] = "part of Crypt > Next floor",
-        ["Farm.Event.GhostJoinByZone"] = "the safe way to join (like the popup's Yes)",
-        ["Farm.Event.AutoNest"] = "Crypt > Open > Twig + Give twigs to the nest",
-        ["Farm.Event.PetPenSlots"] = "4 slots (5 with the extra-slot pass: set it in the loader)",
-        ["Farm.Event.PetPenStockMinBucks"] = "a reserve of 750 Bucks is kept",
-        ["Farm.Event.CandyPets.KeepCandy"] = "the Candy Shop buys all it can",
-        ["Farm.Event.CandyPets.Buy"] = "the Candy Shop has no limit (pick the pets)",
-        ["Farm.MaxEggBuysPerSession"] = "no limit (1 egg only when nothing grows)",
-        ["Farm.HouseDoorExit"] = "experimental, never worked live",
-        ["Farm.CashbackMinutes"] = "every 10 minutes",
-        ["Farm.FastTravel"] = "not read by the program",
-        ["Farm.PetMeFocusSeconds"] = "not read by the program",
-    }
-    local TEXT_FIELDS = { "Name", "Tooltip", "Content", "Title", "Description", "Subtitle", "PlaceholderText", "Placeholder" }
-    local function localizeFields(fields)
-        if type(fields) == "table" then
-            for _, field in ipairs(TEXT_FIELDS) do
-                if type(fields[field]) == "string" then
-                    fields[field] = Lang.tr(fields[field])
-                end
-            end
-        end
-        return fields
-    end
-    Interface.localizeFields = localizeFields
-    local function wrapMethod(object, name, before, after)
-        local original = type(object) == "table" and rawget(object, name) or nil
-        if type(original) ~= "function" then
-            local ok, found = pcall(function()
-                return object[name]
-            end)
-            original = ok and type(found) == "function" and found or nil
-        end
-        if not original then
-            return
-        end
-        object[name] = function(self, first, ...)
-            if before then
-                first = before(first)
-            end
-            local result = original(self, first, ...)
-            if after then
-                result = after(result)
-            end
-            return result
-        end
-    end
-    local function localizeElement(element)
-        if type(element) == "table" then
-            wrapMethod(element, "Set", localizeFields)
-            wrapMethod(element, "AddDropdown", function(nested)
-                if type(nested) == "table" and type(nested.Placeholder) == "string" then
-                    nested.Placeholder = Lang.tr(nested.Placeholder)
-                end
-                return nested
-            end)
-        end
-        return element
-    end
-    local function localizeGroupbox(box)
-        if type(box) == "table" then
-            for _, name in ipairs({ "CreateToggle", "CreateSlider", "CreateButton", "CreateInput", "CreateLabel", "CreateParagraph" }) do
-                wrapMethod(box, name, localizeFields, localizeElement)
-            end
-        end
-        return box
-    end
-    local function localizeTab(tab)
-        if type(tab) == "table" then
-            wrapMethod(tab, "CreateGroupbox", localizeFields, localizeGroupbox)
-        end
-        return tab
-    end
-    local function localizeSection(section)
-        if type(section) == "table" then
-            wrapMethod(section, "CreateTab", localizeFields, localizeTab)
-        end
-        return section
-    end
-    function Interface.localize(library)
-        if Lang.current == "en" or type(library) ~= "table" then
-            return false
-        end
-        wrapMethod(library, "Notification", localizeFields)
-        wrapMethod(library, "CreateWindow", localizeFields, function(window)
-            if type(window) == "table" then
-                wrapMethod(window, "CreateTabSection", function(name)
-                    return type(name) == "string" and Lang.tr(name) or name
-                end, localizeSection)
-                wrapMethod(window, "PromptDialog", function(dialog)
-                    localizeFields(dialog)
-                    if type(dialog) == "table" and type(dialog.Actions) == "table" then
-                        for _, action in pairs(dialog.Actions) do
-                            localizeFields(action)
-                        end
-                    end
-                    return dialog
-                end)
-                wrapMethod(window, "CreateHomeTab", function(home)
-                    if type(home) == "table" and type(home.Changelog) == "table" then
-                        for _, entry in ipairs(home.Changelog) do
-                            localizeFields(entry)
-                        end
-                    end
-                    return home
-                end)
-            end
-            return window
-        end)
-        return true
-    end
-    function Interface.localizeTree(root, keepWatching, connections)
-        if Lang.current == "en" or not root then
-            return 0
-        end
-        local count = 0
-        local function apply(label)
-            local translated = Lang.tr(label.Text)
-            if translated ~= label.Text then
-                label.Text = translated
-                count += 1
-            end
-        end
-        for _, item in ipairs(root:GetDescendants()) do
-            if item:IsA("TextLabel") or item:IsA("TextButton") then
-                pcall(apply, item)
-                if keepWatching and keepWatching[item.Name] and connections then
-                    table.insert(connections, item:GetPropertyChangedSignal("Text"):Connect(function()
-                        pcall(apply, item)
-                    end))
-                end
-            end
-        end
-        return count
-    end
-    Interface.PC_SIZE = { 980, 600 }
-    Interface.UI_SCALES = { "Auto", "0.5", "0.6", "0.7", "0.8", "0.9", "1", "1.1", "1.25" }
+
     function Interface.scaleFor(setting, touch, viewport)
-        local chosen = tonumber(setting)
-        if chosen then
-            return math.clamp(chosen, 0.5, 1.25)
+        if type(setting) == "number" then return setting end
+        if type(setting) == "string" and setting ~= "Auto" then
+            local n = tonumber(setting); if n then return n end
         end
-        if not touch or not viewport then
-            return 1
-        end
-        local fit = math.min((viewport.X - 40) / Interface.PC_SIZE[1], (viewport.Y - 70) / Interface.PC_SIZE[2])
-        return math.clamp(math.floor(fit * 100) / 100, 0.4, 1)
+        if touch then return 1 end
+        if viewport and tonumber(viewport.X) and tonumber(viewport.X) < 1280 then return 0.8 end
+        return 1
     end
-    function Interface.lookupCountry()
-        if Interface.country then
-            return Interface.country
-        end
-        local ok, country = pcall(function()
-            local Players = game:GetService("Players")
-            return game:GetService("LocalizationService"):GetCountryRegionForPlayerAsync(Players.LocalPlayer)
-        end)
-        if ok and type(country) == "string" and country ~= "" then
-            Interface.country = country
-        end
-        return Interface.country
-    end
+
+    function Interface.lookupCountry() return nil end
+    function Interface.developerAvatar() return nil end
+    function Interface.tintGroupbox() end
+    function Interface.tintFrame() end
+    function Interface.paintDashboard() end
+    function Interface.fillFarmCard() end
+    function Interface.serverChipTexts() return {} end
+    function Interface.hideWindow() return nil end
+    function Interface.themeChoice() return nil end
+    function Interface.localizeFields() end
+    function Interface.localize() end
+    function Interface.localizeTree() end
+    Interface.CARD_TINT = {}
+
+    -- ── Main Interface.start ──────────────────────────────────────────────────
     function Interface.start(api, options)
         options = options or {}
-        assert(type(api) == "table" and type(api.Config) == "table", "Interface: the farm's control API is missing")
+        assert(type(api) == "table" and type(api.Config) == "table",
+            "Interface: the farm's control API is missing")
+
         if Interface.current then
             pcall(Interface.current.Close)
             Interface.current = nil
         end
-        local config = api.Config
+
+        local config   = api.Config
         local settings = config.Interface or options.settings or {}
-        local farm = config.Farm
-        local event = farm.Event or {}
-        local load = options.loadLibrary or function()
+        local farm     = config.Farm
+        local event    = farm.Event or {}
+
+        -- ── Load WindUI ──────────────────────────────────────────────────────
+        local WindUI
+        local loadFn = options.loadLibrary or function()
             return loadstring(game:HttpGet(Interface.LIBRARY_URL))()
         end
-        local okLoad, Library = pcall(load)
-        if not okLoad or type(Library) ~= "table" then
-            error("the SakuraFlower UI library could not be loaded (" .. tostring(Library) .. ")", 0)
+        local okLoad, loadResult = pcall(loadFn)
+        if not okLoad or type(loadResult) ~= "table" then
+            error("WindUI could not be loaded: " .. tostring(loadResult), 0)
         end
+        WindUI = loadResult
+
         Interface.gameIcon = type(api.GameIcon) == "function" and api.GameIcon or nil
+
+        -- ── Locale / language ────────────────────────────────────────────────
         local locale
-        pcall(function()
-            locale = game:GetService("LocalizationService").RobloxLocaleId
-        end)
+        pcall(function() locale = game:GetService("LocalizationService").RobloxLocaleId end)
         local country = Interface.lookupCountry()
         Lang.use(Lang.pick(settings.Language, country, locale))
-        pcall(Interface.localize, Library)
+
+        -- ── Touch / viewport ─────────────────────────────────────────────────
         local touch = options.touch
         if touch == nil then
-            local okTouch, isTouch = pcall(function()
+            local okT, isTouch = pcall(function()
                 return game:GetService("UserInputService").TouchEnabled
             end)
-            touch = okTouch and isTouch == true
+            touch = okT and isTouch == true
         end
-        local viewport = options.viewport
-        if viewport == nil then
-            pcall(function()
-                viewport = workspace.CurrentCamera.ViewportSize
-            end)
-        end
-        local hasViewport = viewport ~= nil and tonumber(viewport.X) ~= nil and tonumber(viewport.Y) ~= nil
-        local scale = Interface.scaleFor(settings.UIScale, touch, hasViewport and viewport or nil)
-        local wide = not touch or scale < 1
-        local columns = wide and 2 or 1
-        local function col(n)
-            return wide and n or 1
-        end
-        local rowWidth = wide and 40 or 64
-        local aboutWidth = wide and 46 or 64
-        local showDescriptions = settings.Descriptions ~= false
-        local catalog = { petKinds = {}, giftIds = {} }
-        if type(api.Catalog) == "function" then
-            local okCatalog, result = pcall(api.Catalog)
-            if okCatalog and type(result) == "table" then
-                catalog.petKinds = type(result.petKinds) == "table" and result.petKinds or {}
-                catalog.giftIds = type(result.giftIds) == "table" and result.giftIds or {}
-            end
-        end
+        local viewport
+        pcall(function() viewport = workspace.CurrentCamera.ViewportSize end)
+        local hasViewport = viewport ~= nil and tonumber(viewport.X) ~= nil
+
+        -- ── Alive / cleanup ───────────────────────────────────────────────────
         local alive = true
         local connections = {}
         local handle = { touch = touch }
         function handle.Close()
-            if not alive then
-                return
-            end
+            if not alive then return end
             alive = false
-            for _, connection in ipairs(connections) do
-                pcall(function()
-                    connection:Disconnect()
-                end)
-            end
+            for _, c in ipairs(connections) do pcall(function() c:Disconnect() end) end
+            pcall(function() WindUI:Destroy() end)
+        end
+
+        -- ── Notify helper ─────────────────────────────────────────────────────
+        local function notify(title, content, _icon)
             pcall(function()
-                if type(Library) == "table" and type(Library.Destroy) == "function" then Library:Destroy() end
+                WindUI:Notify({
+                    Title   = title,
+                    Content = tostring(content or ""),
+                    Duration = 4,
+                })
             end)
         end
-        local function notify(title, content, icon)
-            pcall(function()
-                Library:Notify({ Title = title, Content = content, Type = "Info", Duration = 4 })
-            end)
-        end
-        local function copy(title, text)
-            local copied = pcall(function()
-                setclipboard(text)
-            end)
-            notify(title, copied and ("Copied: " .. text) or text, "copy")
-        end
+
+        -- ── Config read/write with autosave ───────────────────────────────────
         local refreshers = {}
         local quiet = false
         handle.bound = {}
-        local function remember(key, refresh)
-            table.insert(refreshers, { key = key, refresh = refresh })
+
+        local function remember(key, refreshFn)
+            table.insert(refreshers, { key = key, refresh = refreshFn })
             handle.bound[key] = true
         end
+
         local function refresh(onlyKey)
-            local wasQuiet = quiet
-            quiet = true
+            local wasQuiet = quiet; quiet = true
             for _, entry in ipairs(refreshers) do
-                if onlyKey == nil or entry.key == onlyKey then
-                    pcall(entry.refresh)
-                end
+                if onlyKey == nil or entry.key == onlyKey then pcall(entry.refresh) end
             end
             quiet = wasQuiet
         end
+
         local function read(path)
             local tbl, key = Interface.resolve(config, path)
-            if type(tbl) == "table" then
-                return tbl[key]
-            end
+            if type(tbl) == "table" then return tbl[key] end
             return nil
         end
-        local savedInfo
+
         local savePending = false
-        local function updateSavedInfo()
-            if not savedInfo then
-                return
-            end
-            local text
-            if settings.RememberSettings == false then
-                text = "Autosave off: save a config instead"
-            else
-                local count = countKeys(Interface.saved.changes)
-                text = count == 0 and "Autosave: on (this device)" or T("Autosave: %d change(s) kept", count)
-            end
-            pcall(function()
-                savedInfo:Set({ Name = text })
-            end)
-        end
         local function noteChange(key, value, before)
-            if quiet or not Interface.canSave(key) then
-                return
-            end
-            if settings.RememberSettings == false and not Interface.META_KEYS[key] then
-                return
-            end
+            if quiet or not Interface.canSave(key) then return end
+            if settings.RememberSettings == false and not Interface.META_KEYS[key] then return end
             local saved = Interface.saved
-            if saved.originals[key] == nil then
-                saved.originals[key] = deepCopy(before)
-            end
+            if saved.originals[key] == nil then saved.originals[key] = deepCopy(before) end
             if sameValue(value, saved.originals[key]) then
                 saved.changes[key], saved.originals[key] = nil, nil
             else
                 saved.changes[key] = deepCopy(value)
             end
-            updateSavedInfo()
             if not savePending then
                 savePending = true
                 task.delay(1, function()
@@ -4592,756 +3398,432 @@ __moduleSources["Services/Interface"] = function(...)
                 end)
             end
         end
+
         local function write(path, value)
             local tbl, key = Interface.resolve(config, path)
-            if type(tbl) ~= "table" then
-                return
-            end
+            if type(tbl) ~= "table" then return end
             local before = tbl[key]
-            if sameValue(before, value) then
-                return
-            end
+            if sameValue(before, value) then return end
             tbl[key] = value
             local fullKey = table.concat(path, ".")
             noteChange(fullKey, value, before)
             refresh(fullKey)
         end
-        local function about(path, text)
-            return text or Interface.DESCRIPTIONS[table.concat(path, ".")]
-        end
-        local function describe(box, index, text)
-            if showDescriptions and type(text) == "string" and text ~= "" then
-                box:CreateLabel({ Name = fit(Lang.tr(text), aboutWidth), Icon = I("info") }, index .. "_about")
-            end
-        end
-        local function bindToggle(box, index, icon, name, path, tooltip)
-            if type(read(path)) ~= "boolean" then
-                return nil
-            end
-            local text = about(path, tooltip)
-            local element = box:CreateToggle({
-                Name = name,
-                Icon = I(icon),
-                Tooltip = text,
-                CurrentValue = read(path),
-                Style = 2,
-                Callback = function(value)
-                    write(path, value == true)
-                end,
-            }, index)
-            describe(box, index, text)
-            remember(table.concat(path, "."), function()
-                if element.Values.CurrentValue ~= read(path) then
-                    element:Set({ CurrentValue = read(path) })
-                end
-            end)
-            return element
-        end
-        local function bindSlider(box, index, icon, name, path, min, max, step, suffix, tooltip, scale)
-            scale = scale or 1
-            if type(read(path)) ~= "number" then
-                return nil
-            end
-            local function shown()
-                return math.clamp((tonumber(read(path)) or min * scale) / scale, min, max)
-            end
-            local text = about(path, tooltip)
-            local element = box:CreateSlider({
-                Name = name,
-                Icon = I(icon),
-                Tooltip = (text and (Lang.tr(text) .. ". ") or "") .. T("Drag, or tap the number to type a value."),
-                Range = { min, max },
-                Increment = step,
-                Suffix = suffix,
-                CurrentValue = shown(),
-                Callback = function(value)
-                    local number = tonumber(value)
-                    if number and number ~= shown() then
-                        write(path, math.clamp(number, min, max) * scale)
-                    end
-                end,
-            }, index)
-            describe(box, index, text)
-            remember(table.concat(path, "."), function()
-                if element.Values.CurrentValue ~= shown() then
-                    element:Set({ CurrentValue = shown() })
-                end
-            end)
-            return element
-        end
-        local fitPopup
-        local function sameSet(a, b)
-            if #a ~= #b then
-                return false
-            end
-            local seen = {}
-            for _, item in ipairs(a) do
-                seen[item] = true
-            end
-            for _, item in ipairs(b) do
-                if not seen[item] then
-                    return false
-                end
-            end
-            return true
-        end
-        local function bindPick(box, index, icon, name, path, choices, opts)
-            opts = opts or {}
-            local multi = opts.multi == true
-            local get = opts.get or function()
-                return read(path)
-            end
-            local current = get()
-            if (multi and not isStringList(current)) or (not multi and type(current) ~= "string") then
-                return nil
-            end
-            local list = table.clone(choices)
-            for _, value in ipairs(multi and current or { current }) do
-                local known = false
-                for _, choice in ipairs(list) do
-                    known = known or choice[1] == value
-                end
-                if not known then
-                    table.insert(list, { value, opts.nameOf and opts.nameOf(value) or prettyKind(value) })
-                end
-            end
-            for position, choice in ipairs(list) do
-                list[position] = { choice[1], Lang.tr(choice[2]) }
-            end
-            local function names(values)
-                local result = {}
-                for _, choice in ipairs(list) do
-                    if table.find(values, choice[1]) then
-                        table.insert(result, choice[2])
-                    end
-                end
-                return result
-            end
-            local labels = {}
-            for _, choice in ipairs(list) do
-                table.insert(labels, choice[2])
-            end
-            local label = box:CreateLabel({ Name = name, Icon = I(icon), Tooltip = opts.tooltip or (path and about(path)) }, index)
-            local dropdown = label:AddDropdown({
-                Options = labels,
-                CurrentOption = names(multi and current or { current }),
-                MultipleOptions = multi,
-                Required = not multi and #labels > 0,
-                Placeholder = opts.placeholder,
-                Callback = function(selected)
-                    local picked = {}
-                    for _, item in ipairs(type(selected) == "table" and selected or { selected }) do
-                        picked[item] = true
-                    end
-                    local values = {}
-                    for _, choice in ipairs(list) do
-                        if picked[choice[2]] then
-                            table.insert(values, choice[1])
-                        end
-                    end
-                    local now = get()
-                    if multi then
-                        if not sameSet(values, now) then
-                            if opts.set then
-                                opts.set(values)
-                            else
-                                write(path, values)
-                            end
-                        end
-                    elseif values[1] and values[1] ~= now then
-                        if opts.set then
-                            opts.set(values[1])
-                        else
-                            write(path, values[1])
-                        end
-                        if opts.onPick then
-                            opts.onPick(values[1])
-                        end
-                    end
-                end,
-            }, "Dropdown")
-            fitPopup(dropdown)
-            local function refreshPick()
-                local want = names(multi and get() or { get() })
-                local shownNow = dropdown and dropdown.Values and dropdown.Values.CurrentOption
-                if type(shownNow) ~= "table" or not sameSet(shownNow, want) then
-                    dropdown:Set({ CurrentOption = want })
-                end
-            end
-            for _, key in ipairs(opts.keys or { path and table.concat(path, ".") }) do
-                remember(key, refreshPick)
-            end
-            describe(box, index, opts.tooltip or (path and about(path)))
-            return label, dropdown
-        end
-        local function bindText(box, index, icon, name, path, placeholder, accept, shown)
-            if type(read(path)) ~= "string" then
-                return nil
-            end
-            shown = shown or function(value)
-                return value
-            end
-            local element
-            element = box:CreateInput({
-                Name = name,
-                Icon = I(icon),
-                Tooltip = about(path),
-                CurrentValue = shown(read(path)),
-                PlaceholderText = placeholder,
-                Enter = true,
-                Callback = function(typed)
-                    typed = string.match(tostring(typed or ""), "^%s*(.-)%s*$")
-                    if typed == shown(read(path)) then
-                        return
-                    end
-                    local ok, why = accept(typed)
-                    if ok then
-                        write(path, typed)
-                    else
-                        notify(name, why or "Not valid", "triangle-alert")
-                    end
-                    pcall(function()
-                        element:Set({ CurrentValue = shown(read(path)) })
-                    end)
-                end,
-            }, index)
-            remember(table.concat(path, "."), function()
-                if tostring(element.Values.CurrentValue) ~= shown(read(path)) then
-                    element:Set({ CurrentValue = shown(read(path)) })
-                end
-            end)
-            return element
-        end
-        local function confirm(window, title, content, icon, actionName, action, extra)
-            local actions = {
-                Primary = { Name = actionName, Icon = I("check"), Callback = action },
-                { Name = "Cancel", Callback = function() end },
-            }
-            if extra then
-                table.insert(actions, 1, extra)
-            end
-            window:PromptDialog({
-                Name = title,
-                Content = content,
-                Icon = I(icon),
-                Type = 1,
-                Actions = actions,
-            })
-        end
-        local function rebuild(why)
-            if type(api.OpenInterface) == "function" then
-                notify("Window", why or "Building the window again...", "refresh-cw")
-                task.delay(0.5, api.OpenInterface)
-                return true
-            end
-            notify("Window", "Applies when the window opens again.", "info")
-            return false
-        end
+
         local function callApi(name, ...)
             local fn = api[name]
-            if type(fn) ~= "function" then
-                return false, "Not available in this version"
-            end
+            if type(fn) ~= "function" then return false, "Not available" end
             return fn(...)
         end
-        local refreshStatus
-        function fitPopup(dropdown)
-            if handle.scale == nil or handle.scale == 1 then
-                return
-            end
-            pcall(function()
-                local scale = handle.scale
-                local anchor, popup = dropdown.Instances[1], dropdown.Instances[2]
-                local uiScale = popup:FindFirstChild("AmeFarmScale") or Instance.new("UIScale")
-                uiScale.Name = "AmeFarmScale"
-                uiScale.Scale = scale
-                uiScale.Parent = popup
-                local function width()
-                    popup.Size = UDim2.fromOffset(math.ceil(anchor.AbsoluteSize.X / scale), popup.Size.Y.Offset)
-                end
-                width()
-                table.insert(connections, anchor:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-                    task.defer(width)
-                end))
-            end)
+
+        -- ── WindUI helpers ────────────────────────────────────────────────────
+        -- WindUI Toggle wrapper
+        local function uiToggle(tab, title, desc, defaultVal, onChange)
+            local el = tab:Toggle({
+                Title    = title,
+                Desc     = desc ~= "" and desc or nil,
+                Value    = defaultVal,
+                Callback = onChange,
+            })
+            return el
         end
-        local tintIcon
-        local function actionButton(box, index, icon, name, tooltip, run)
-            return box:CreateButton({
-                Name = name,
-                Icon = I(icon),
-                IndicatorStyle = 1,
-                Tooltip = tooltip,
+
+        -- WindUI Slider wrapper
+        local function uiSlider(tab, title, desc, min, max, step, defaultVal, suffix, onChange)
+            local el = tab:Slider({
+                Title = title,
+                Desc  = desc ~= "" and desc or nil,
+                Value = { Min = min, Max = max, Default = defaultVal },
+                Step  = step,
+                Callback = onChange,
+            })
+            return el
+        end
+
+        -- WindUI Dropdown wrapper (simple string list)
+        local function uiDropdown(tab, title, desc, options, defaultVal, multi, onChange)
+            local dv = {}
+            if multi then
+                if type(defaultVal) == "table" then dv = defaultVal end
+            else
+                dv = defaultVal or (options[1] and options[1].Title or "")
+            end
+            local el = tab:Dropdown({
+                Title  = title,
+                Desc   = desc ~= "" and desc or nil,
+                Values = options,
+                Value  = dv,
+                Multi  = multi or false,
+                Callback = onChange,
+            })
+            return el
+        end
+
+        -- WindUI Input wrapper
+        local function uiInput(tab, title, desc, placeholder, defaultVal, onChange)
+            local el = tab:Input({
+                Title       = title,
+                Desc        = desc ~= "" and desc or nil,
+                Value       = defaultVal or "",
+                Placeholder = placeholder,
+                Callback    = onChange,
+            })
+            return el
+        end
+
+        -- WindUI Button wrapper
+        local function uiButton(tab, title, desc, onClick)
+            tab:Button({
+                Title    = title,
+                Desc     = desc ~= "" and desc or nil,
                 Callback = function()
-                    local okRun, ok, message = pcall(run)
+                    local okRun, ok, msg = pcall(onClick)
                     if not okRun then
-                        notify(name, "Error: " .. tostring(ok), "triangle-alert")
-                    elseif message ~= false then
-                        notify(name, tostring(message or (ok and "Done" or "Not possible now")), ok and "check" or "triangle-alert")
-                    end
-                    if refreshStatus then
-                        refreshStatus()
+                        notify(title, "Error: " .. tostring(ok))
+                    elseif msg ~= false then
+                        notify(title, tostring(msg or (ok and "Done" or "Not available now")))
                     end
                 end,
-            }, index)
+            })
         end
-        local keybind = tostring(settings.Keybind or "RightShift")
-        pcall(function() Library.WindowKeybind = keybind end)
-        local version = tostring(api.Version or "?")
-        local shortVersion = string.match(version, "^[%d%.]+") or version
-        local windowSettings = {
-            Name = Interface.TITLE,
-            SubTitle = Interface.EDITION,
-            Footer = "Shxdrag hub",
-            LoadingTitle = Interface.TITLE,
-            LoadingSubtitle = "Adopt Me Farm",
-            ConfigurationSaving = {
-                Enabled = true,
-                FolderName = "ShxdragHub",
-                FileName = "config",
-            },
-        }
-        local windowWidth, windowHeight
-        if hasViewport and UDim2 then
-            local width, height
-            if scale ~= 1 then
-                width, height = Interface.PC_SIZE[1], Interface.PC_SIZE[2]
-            else
-                width = touch and math.min(viewport.X - 80, 900) or math.min(viewport.X - 120, 980)
-                height = touch and math.min(viewport.Y - 120, 560) or math.min(viewport.Y - 160, 600)
+
+        -- Bind helpers (wires config path to WindUI elements with refresh) ──────
+        local function bindToggle(tab, title, desc, path)
+            if type(read(path)) ~= "boolean" then return end
+            local el = uiToggle(tab, title, desc or "", read(path), function(v)
+                write(path, v == true)
+            end)
+            remember(table.concat(path, "."), function()
+                pcall(function()
+                    local want = read(path)
+                    if el.Value ~= want then el:Set(want) end
+                end)
+            end)
+        end
+
+        local function bindSlider(tab, title, desc, path, min, max, step, suffix)
+            if type(read(path)) ~= "number" then return end
+            local el = uiSlider(tab, title, desc or "", min, max, step,
+                math.clamp(tonumber(read(path)) or min, min, max), suffix, function(v)
+                    write(path, math.clamp(tonumber(v) or min, min, max))
+                end)
+            remember(table.concat(path, "."), function()
+                pcall(function()
+                    local want = math.clamp(tonumber(read(path)) or min, min, max)
+                    if el.Value ~= want then el:Set(want) end
+                end)
+            end)
+        end
+
+        -- Build a flat string-list dropdown bound to a config path
+        local function bindPickSimple(tab, title, desc, path, choicesList, multi)
+            local labels = {}
+            local labelToId = {}
+            local idToLabel = {}
+            for _, choice in ipairs(choicesList) do
+                local id, label = choice[1], choice[2]
+                table.insert(labels, { Title = label })
+                labelToId[label] = id
+                idToLabel[id] = label
             end
-            windowWidth, windowHeight = math.floor(math.max(width, 320)), math.floor(math.max(height, 200))
-            windowSettings.DefaultSize = UDim2.fromOffset(windowWidth, windowHeight)
-        end
-        local scaled = scale ~= 1 and pcall(function()
-            local main = Library.Instance and Library.Instance.MainWindow
-            local uiScale = main:FindFirstChild("AmeFarmScale") or Instance.new("UIScale")
-            uiScale.Name = "AmeFarmScale"
-            uiScale.Scale = scale
-            uiScale.Parent = main
-        end)
-        local Window = Library:CreateWindow(windowSettings)
-        handle.scale = scale
-        -- SakuraFlower compatibility: CreateTabSection + Column-based CreateGroupbox
-        if type(Window.CreateTabSection) ~= "function" then
-            Window.CreateTabSection = function(self, name, visible)
-                local section = {}
-                section.Instance = { LayoutOrder = 0 }
-                section.CreateTab = function(_, settings, idx)
-                    local tabSettings = { Name = settings.Name, Icon = settings.Icon }
-                    local tab = Window:CreateTab(tabSettings)
-                    -- Add Column-based CreateGroupbox
-                    if tab and type(tab.AddLeftGroupbox) == "function" then
-                        tab.CreateGroupbox = function(t, boxSettings, boxIdx)
-                            local col = boxSettings.Column or 1
-                            local bs = { Name = boxSettings.Name, Icon = boxSettings.Icon }
-                            if col == 2 then
-                                return (type(t.AddRightGroupbox) == "function" and t:AddRightGroupbox(bs)) or t:AddLeftGroupbox(bs)
-                            else
-                                return t:AddLeftGroupbox(bs)
+            if multi then
+                if not isStringList(read(path)) then return end
+                local function getSelected()
+                    local result = {}
+                    for _, id in ipairs(read(path) or {}) do
+                        if idToLabel[id] then table.insert(result, idToLabel[id]) end
+                    end
+                    return result
+                end
+                local el = uiDropdown(tab, title, desc or "", labels, getSelected(), true, function(selectedLabels)
+                    local ids = {}
+                    if type(selectedLabels) == "table" then
+                        for _, sel in ipairs(selectedLabels) do
+                            if labelToId[sel.Title or sel] then
+                                table.insert(ids, labelToId[sel.Title or sel])
                             end
                         end
                     end
-                    return tab
+                    write(path, ids)
+                end)
+                remember(table.concat(path, "."), function()
+                    pcall(function() el:Set(getSelected()) end)
+                end)
+            else
+                if type(read(path)) ~= "string" then return end
+                local function getSelected()
+                    return idToLabel[read(path)] or labels[1] and labels[1].Title or ""
                 end
-                return section
-            end
-        end
-        -- Also patch CreateTab to inject CreateGroupbox on tabs created directly
-        local _origCreateTab = Window.CreateTab
-        if type(_origCreateTab) == "function" then
-            Window.CreateTab = function(self, settings, idx)
-                local tab = _origCreateTab(self, settings, idx)
-                if tab and type(tab.AddLeftGroupbox) == "function" and type(tab.CreateGroupbox) ~= "function" then
-                    tab.CreateGroupbox = function(t, boxSettings, boxIdx)
-                        local col = boxSettings.Column or 1
-                        local bs = { Name = boxSettings.Name, Icon = boxSettings.Icon }
-                        if col == 2 then
-                            return (type(t.AddRightGroupbox) == "function" and t:AddRightGroupbox(bs)) or t:AddLeftGroupbox(bs)
-                        else
-                            return t:AddLeftGroupbox(bs)
-                        end
-                    end
-                end
-                return tab
-            end
-        end
-        -- Alias missing methods if SakuraFlower names them differently
-        if type(Library.Notify) == "function" and type(Library.Notification) ~= "function" then
-            Library.Notification = function(self, opts)
-                Library:Notify({ Title = opts and opts.Title or "", Content = opts and opts.Content or "", Type = "Info", Duration = opts and opts.Duration or 4 })
+                local el = uiDropdown(tab, title, desc or "", labels, getSelected(), false, function(sel)
+                    local id = labelToId[type(sel) == "table" and (sel.Title or "") or sel]
+                    if id then write(path, id) end
+                end)
+                remember(table.concat(path, "."), function()
+                    pcall(function() el:Set({ Title = getSelected() }) end)
+                end)
             end
         end
 
-        if scaled and windowWidth then
-            local function place()
-                pcall(function()
-                    local main = Library.Instance and Library.Instance.MainWindow
-                    if not (Library.Maximized) then
-                        main.Size = UDim2.fromOffset(windowWidth, windowHeight)
-                    end
-                    local inset = 36
-                    pcall(function()
-                        inset = game:GetService("GuiService"):GetGuiInset().Y
-                    end)
-                    local top = math.max(0, math.floor((viewport.Y - inset - windowHeight * scale) / 2))
-                    main.Position = UDim2.fromOffset(math.floor((viewport.X - windowWidth * scale) / 2), top)
-                end)
-                pcall(function()
-                    if Library.Instance and Library.Instance.Drag then Library.Instance.Drag.Size = UDim2.new(0, 0, 0, 0) end
-                end)
-            end
-            place()
-            task.delay(0.6, place)
-        end
-        local boxes = {}
-        local liveColor = "gray"
-        local localized = false
-        local function track(tab)
-            local create = tab.CreateGroupbox
-            tab.CreateGroupbox = function(self, groupboxSettings, index)
-                local box = create(self, groupboxSettings, index)
-                boxes[index] = box
-                return box
-            end
-            return tab
-        end
-        local paintAll
-        local function paint()
-            for index, box in pairs(boxes) do
-                local color = index == "live" and liveColor or Interface.BOX_COLORS[index]
-                if color then
-                    pcall(Interface.tintGroupbox, box, color)
-                end
-                if not localized then
-                    pcall(function()
-                        box.Instance:FindFirstAncestorOfClass("ScreenGui").AutoLocalize = false
-                        localized = true
-                    end)
-                end
-            end
-        end
-        local homeTab
-        if wide and type(Window.CreateHomeTab) == "function" then
-            local okHome, result = pcall(function()
-                return Window:CreateHomeTab({
-                    SupportedExecutors = Interface.SUPPORTED_EXECUTORS,
-                    UnsupportedExecutors = {},
-                    DiscordInvite = Interface.DISCORD_INVITE,
-                    Backdrop = 0,
-                    IconStyle = 1,
-                    Changelog = { Interface.CHANGELOG_LATEST },
-                })
-            end)
-            homeTab = okHome and type(result) == "table" and result or nil
-        end
-        handle.dashboard = homeTab ~= nil
-        local farmSection = Window:CreateTabSection("Farm")
-        local setupSection
-        local mainTab = track(farmSection:CreateTab({ Name = "Main", Icon = I("paw-print"), Columns = columns }, "main"))
-        local rowElements, stateHeader = {}, nil
-        if not homeTab then
-            local live = mainTab:CreateGroupbox({ Name = "Farm status", Icon = I("activity"), Column = 1 }, "live")
-            bindToggle(live, "farmEnabled", "power", "Farm running", { "Farm", "Enabled" })
-            local headerTitle, headerText = Interface.stateHeader(nil)
-            stateHeader = live:CreateParagraph({ Name = headerTitle, Icon = I("power"), Content = headerText }, "state")
-            for _, row in ipairs(Interface.statusRows(nil, rowWidth)) do
-                rowElements[row.key] = live:CreateLabel({ Name = row.text, Icon = I(row.game or row.icon, row.icon) },
-                    "row_" .. row.key)
-            end
-        end
-        local farmBox = mainTab:CreateGroupbox({ Name = "Quick actions", Icon = I("zap"), Column = 1 }, "farm")
-        if homeTab then
-            bindToggle(farmBox, "farmEnabled", "power", "Farm running", { "Farm", "Enabled" })
-        end
-        actionButton(farmBox, "qaHome", "game:home", "Go home", "Stops the running task and goes home (respawn first).", function()
-            return callApi("GoHome")
-        end)
-        actionButton(farmBox, "qaSkip", "skip-forward", "Skip current task", "Stops the running task; it is not chosen again for 90 s.",
-            function()
-                return callApi("SkipTask")
-            end)
-        actionButton(farmBox, "qaRetry", "refresh-cw", "Retry resting tasks", "Tasks that failed 3 times in a row may run again now.",
-            function()
-                return callApi("RetryDisabled")
-            end)
-        farmBox:CreateButton({
-            Name = "Stop the farm",
-            Icon = I("octagon-x"),
-            IndicatorStyle = 1,
-            Tooltip = "Everything stops and cleans up (run the loader again to start).",
-            Callback = function()
-                confirm(Window, "Stop the farm?", "Everything stops and cleans up. Run the loader again to start.",
-                    "octagon-x", "Stop", function()
-                        api.Stop("stopped from the window")
-                        notify(Interface.TITLE, "Stopped.", "octagon-x")
-                    end)
-            end,
-        }, "stop")
-        local tasksBox = mainTab:CreateGroupbox({ Name = "Auto tasks", Icon = I("badge-check"), Column = 1 }, "tasks")
-        bindToggle(tasksBox, "quests", "scroll-text", "Claim quests", { "Farm", "Event", "Quests" })
-        bindToggle(tasksBox, "visits", "game:home", "Visit homes for quests", { "Farm", "Event", "HouseVisits" })
-        bindToggle(tasksBox, "cashback", "game:bucks", "Collect cashback", { "Farm", "CollectCashback" })
-        bindToggle(tasksBox, "autoOpen", "gift", "Open gifts and chests", { "Farm", "AutoOpen", "Enabled" })
-        local penBox = mainTab:CreateGroupbox({ Name = "Pet Pen", Icon = I("fence"), Column = 1 }, "pen")
-        bindToggle(penBox, "pen", "fence", "Auto Pet Pen", { "Farm", "Event", "PetPen" },
-            "Claims the pen (at home), takes full grown pets out, fills it with pets that still grow")
-        bindSlider(penBox, "penMinutes", "timer", "Claim every", { "Farm", "Event", "PetPenMinutes" }, 1, 60, 1, "min")
-        bindToggle(penBox, "penStock", "package", "Keep it full (buys eggs)", { "Farm", "Event", "PetPenStock" },
-            "Buys eggs (Bucks) so the pen always has pets that grow; needs 'Buy an egg'")
-        actionButton(penBox, "qaPen", "fence", "Claim Pet Pen now", "Goes home if needed and claims / refills the Pet Pen once.",
-            function()
-                return callApi("ClaimPetPen")
-            end)
-        local needsBox = mainTab:CreateGroupbox({ Name = "Auto needs", Icon = I("list-checks"), Column = col(2) }, "needs")
-        bindToggle(needsBox, "autoNeeds", "list-checks", "Auto needs", { "Farm", "AutoNeeds", "Enabled" },
-            "Does every pet need; pick below the ones to skip. Buys 1 food / water only when it has none.")
-        bindToggle(needsBox, "babyMode", "baby", "Baby needs too", { "Farm", "BabyMode" })
-        bindPick(needsBox, "needSkip", "octagon-x", "Skip these needs", { "Farm", "AutoNeeds", "Skip" }, Interface.NEED_NAMES,
-            { multi = true, placeholder = "Nothing skipped: every need", tooltip = "Needs picked here are NOT done" })
-        local petsBox = mainTab:CreateGroupbox({ Name = "Pets", Icon = I("paw-print"), Column = col(2) }, "pets")
-        bindToggle(petsBox, "autoPet", "link", "Keep growing pet equipped", { "Farm", "KeepPetEquipped" },
-            "Keeps a pet that still grows equipped; a full grown one is swapped")
-        local firstChoices = { { "@neon", "Neon pets" }, { "@oldest", "Oldest pets (closest to grown)" } }
-        local kindsShown = {}
-        for _, kind in ipairs(type(farm.FarmPetKinds) == "table" and farm.FarmPetKinds or {}) do
-            if not kindsShown[kind] then
-                kindsShown[kind] = true
-                table.insert(firstChoices, { kind, prettyKind(kind) })
-            end
-        end
-        for _, kind in ipairs(catalog.petKinds) do
-            if not kindsShown[kind] then
-                kindsShown[kind] = true
-                table.insert(firstChoices, { kind, prettyKind(kind) })
-            end
-        end
-        bindPick(petsBox, "farmFirst", "list-ordered", "Farm first", nil, firstChoices, {
-            multi = true,
-            placeholder = "Any growing pet (youngest first)",
-            tooltip = "These pets get the needs, potions and Pet Pen first",
-            keys = { "Farm.PreferNeon", "Farm.PetOrder", "Farm.FarmPetKinds" },
-            get = function()
-                local values = {}
-                if farm.PreferNeon then
-                    table.insert(values, "@neon")
-                end
-                if farm.PetOrder == "oldest" then
-                    table.insert(values, "@oldest")
-                end
-                for _, kind in ipairs(type(farm.FarmPetKinds) == "table" and farm.FarmPetKinds or {}) do
-                    table.insert(values, kind)
-                end
-                return values
-            end,
-            set = function(values)
-                local kinds = {}
-                for _, value in ipairs(values) do
-                    if string.sub(value, 1, 1) ~= "@" then
-                        table.insert(kinds, value)
-                    end
-                end
-                write({ "Farm", "PreferNeon" }, table.find(values, "@neon") ~= nil)
-                write({ "Farm", "PetOrder" }, table.find(values, "@oldest") and "oldest" or "youngest")
-                write({ "Farm", "FarmPetKinds" }, kinds)
-            end,
+        -- ── Build Window ───────────────────────────────────────────────────────
+        local keybind = tostring(settings.Keybind or "RightShift")
+        local Window = WindUI:CreateWindow({
+            Title  = Interface.TITLE,
+            Folder = "ShxdragHub",
+            Icon   = "paw-print",
+            NewElements = true,
+            HideSearchBar = false,
+            OpenButton = {
+                Title       = "Open " .. Interface.TITLE,
+                CornerRadius = UDim.new(1, 0),
+                Enabled     = true,
+                Draggable   = true,
+                OnlyMobile  = false,
+            },
         })
-        local eggIcon = "item:" .. tostring(farm.EggToBuy or "cracked_egg") .. "|egg"
-        bindToggle(petsBox, "buyEgg", eggIcon, "Buy an egg if none grows", { "Farm", "BuyEgg" })
-        bindPick(petsBox, "eggChoice", eggIcon, "Egg to buy", { "Farm", "EggToBuy" }, Interface.EGG_NAMES)
-        local growthBox = mainTab:CreateGroupbox({ Name = "Potions & neon", Icon = I("flask-conical"), Column = col(2) }, "growth")
-        bindToggle(growthBox, "potions", "item:pet_age_potion|flask-conical", "Use potions", { "Farm", "AutoPotions", "Enabled" },
-            "Uses every potion that helps farming on the growing pet; pick below the ones to keep")
-        local potionChoices = {}
-        for _, id in ipairs(type(farm.AutoPotions) == "table" and type(farm.AutoPotions.Potions) == "table"
-            and farm.AutoPotions.Potions or {}) do
-            table.insert(potionChoices, { id, Interface.POTION_NAMES[id] or prettyKind(id) })
-        end
-        bindPick(growthBox, "potionSkip", "octagon-x", "Don't use", { "Farm", "AutoPotions", "Skip" }, potionChoices,
-            { multi = true, placeholder = "Using every potion", tooltip = "Potions picked here are kept (never used)" })
-        bindToggle(growthBox, "autoNeon", "wand-sparkles", "Auto neon pets", { "Farm", "AutoNeon", "Enabled" },
-            "4 full grown pets of one kind -> 1 neon")
-        bindToggle(growthBox, "autoMega", "sparkles", "Auto mega neon pets", { "Farm", "AutoNeon", "Mega" },
-            "4 full grown neons of one kind -> 1 mega neon")
-        local eventTab = track(farmSection:CreateTab({ Name = "Event", Icon = I("ghost"), Columns = columns }, "event"))
-        local halloweenBox = eventTab:CreateGroupbox({ Name = "Halloween 2026", Icon = I("ghost"), Column = 1 }, "halloween")
-        bindToggle(halloweenBox, "ghostOn", "crosshair", "Ghost Gallery", { "Farm", "Event", "GhostGallery" },
-            "Joins every round and vacuums the ghosts (Rusty Keys)")
-        bindToggle(halloweenBox, "hauntlet", "key-round", "Auto Hauntlet", { "Farm", "Event", "Hauntlet" },
-            "Auto Hauntlet — join runs, pick safer doors, use keys/items")
-        bindToggle(halloweenBox, "hauntletFirst", "key-round", "Hauntlet before Ghost Gallery", { "Farm", "Event", "HauntletFirst" },
-            "A Hauntlet run comes first when a Ghost Gallery round is near")
-        bindToggle(halloweenBox, "hauntletSquad", "users", "Hauntlet squad play", { "Farm", "Event", "HauntletSquad" },
-            "Your accounts in one run take turns with phone / keys / wand")
-        bindText(halloweenBox, "hauntletSquadKey", "key-round", "Squad key (private)", { "Farm", "Event", "HauntletSquadKey" },
-            "same key on every alt", function(key)
-                if key ~= "" and #key < 8 then
-                    return false, "At least 8 characters (the worker's SQUAD_KEY)"
+
+        pcall(function()
+            Window:SetToggleKey(Enum.KeyCode[keybind])
+        end)
+
+        -- ── FARM tab ───────────────────────────────────────────────────────────
+        local farmTab = Window:Tab({
+            Title = "Farm",
+            Icon  = "solar:leaf-bold",
+        })
+
+        -- Status section
+        local statusSection = farmTab:Section({ Title = "Farm Status" })
+
+        local statusLabel = farmTab:Section({
+            Title = "Status: loading...",
+            TextSize = 16,
+            TextTransparency = 0.3,
+        })
+
+        -- Start / Stop  (Farm.Enabled only — scheduler keeps running, fully resumable)
+        uiButton(farmTab, "Start Farm",
+            "Resume all farm actions — tasks, candy buy, events, needs, etc.",
+            function()
+                if read({ "Farm", "Enabled" }) == true then
+                    return false, "Farm is already running."
                 end
-                notify("Squad key", key == "" and "Removed: nothing is sent." or "Saved on this device: from the next run.",
-                    "check")
-                return true
-            end, function(value)
-                return (type(value) == "string" and value ~= "") and "******** (set)" or ""
+                write({ "Farm", "Enabled" }, true)
+                return true, "Farm started — resuming on next tick."
             end)
-        bindPick(halloweenBox, "hauntletMove", "key-round", "Door move", { "Farm", "Event", "HauntletMove" },
-            { { "tween", "Tween (smooth)" }, { "walk", "Walk" }, { "tp", "Teleport" } })
-        bindSlider(halloweenBox, "hauntletMoveSeconds", "timer", "Move time", { "Farm", "Event", "HauntletMoveSeconds" },
-            0.1, 5, 0.1, "s", "Tween: seconds to reach a door (shorter = faster)")
-        bindToggle(halloweenBox, "cat", "cat", "Auto Stray Cat", { "Farm", "Event", "StrayCat" })
-        local cryptBox = eventTab:CreateGroupbox({ Name = "Crypt", Icon = I("item:halloween_2026_tomb_spider|skull"), Column = 1 },
-            "crypt")
-        bindToggle(cryptBox, "crypt", "item:halloween_2026_rusty_key|key-round", "Use Rusty Keys", { "Farm", "Event", "Crypt" },
-            "Opens Crypt graves with your Rusty Keys; pick below what to open")
-        bindPick(cryptBox, "cryptOpen", "item:halloween_2026_rusty_key|key-round", "Open", { "Farm", "Event", "CryptOpen" }, Interface.CRYPT_NAMES,
-            { multi = true, placeholder = "Next floor (Mummy Spider)", tooltip = "What a Rusty Key opens, in this order" })
-        bindToggle(cryptBox, "nest", "item:halloween_2026_twig|bird", "Give twigs to the nest", { "Farm", "Event", "PigeonNest" },
-            "Has a Crypt Twig: takes it to the Hotel nest")
-        bindToggle(cryptBox, "skelicorn", "item:halloween_2026_skelicorn|sparkles", "Auto Skelicorn", { "Farm", "Event", "AutoSkelicorn" },
-            "Lightning Lever from the Crypt -> machine by the Manor -> 1 Skelicorn (120k candy)")
-        local candy = event.CandyPets
+        uiButton(farmTab, "Stop Farm",
+            "Pause the farm (watch-only). Press Start Farm to resume anytime.",
+            function()
+                if read({ "Farm", "Enabled" }) == false then
+                    return false, "Farm is already paused."
+                end
+                write({ "Farm", "Enabled" }, false)
+                return true, "Farm paused — press Start Farm to resume."
+            end)
+        farmTab:Space()
+
+        -- Quick actions section
+        local quickSection = farmTab:Section({ Title = "Quick Actions" })
+        uiButton(farmTab, "Go Home",
+            "Stops current task and goes home",
+            function() return callApi("GoHome") end)
+        uiButton(farmTab, "Skip Task",
+            "Skip current task (won't run for 90s)",
+            function() return callApi("SkipTask") end)
+        uiButton(farmTab, "Retry Resting Tasks",
+            "Tasks that failed 3x may run again",
+            function() return callApi("RetryDisabled") end)
+        farmTab:Space()
+
+        -- Auto Tasks
+        local tasksSection = farmTab:Section({ Title = "Auto Tasks" })
+        bindToggle(farmTab, "Claim Quests",         "", { "Farm", "Event", "Quests" })
+        bindToggle(farmTab, "Visit Homes",          "Visit homes for quests", { "Farm", "Event", "HouseVisits" })
+        bindToggle(farmTab, "Collect Cashback",     "", { "Farm", "CollectCashback" })
+        bindToggle(farmTab, "Open Gifts & Chests",  "", { "Farm", "AutoOpen", "Enabled" })
+        farmTab:Space()
+
+        -- Pet Pen
+        local penSection = farmTab:Section({ Title = "Pet Pen" })
+        bindToggle(farmTab, "Auto Pet Pen",
+            "Claims pen, takes grown pets out, fills with growing ones",
+            { "Farm", "Event", "PetPen" })
+        bindSlider(farmTab, "Claim Every (min)", "", { "Farm", "Event", "PetPenMinutes" }, 1, 60, 1, "min")
+        bindToggle(farmTab, "Keep Full (buy eggs)", "Buys eggs so pen always has growing pets",
+            { "Farm", "Event", "PetPenStock" })
+        uiButton(farmTab, "Claim Pet Pen Now",
+            "Goes home if needed and claims / refills the Pen once",
+            function() return callApi("ClaimPetPen") end)
+        farmTab:Space()
+
+        -- Auto Needs
+        local needsSection = farmTab:Section({ Title = "Auto Needs" })
+        bindToggle(farmTab, "Auto Needs",
+            "Handles every pet need; picks food/water if it has none",
+            { "Farm", "AutoNeeds", "Enabled" })
+        bindToggle(farmTab, "Baby Needs Too", "", { "Farm", "BabyMode" })
+        bindPickSimple(farmTab, "Skip These Needs",
+            "Needs selected here are NOT done",
+            { "Farm", "AutoNeeds", "Skip" },
+            Interface.NEED_NAMES, true)
+        farmTab:Space()
+
+        -- Pets
+        local petsSection = farmTab:Section({ Title = "Pets" })
+        bindToggle(farmTab, "Keep Growing Pet Equipped",
+            "Keeps a growing pet equipped; swaps out full-grown ones",
+            { "Farm", "KeepPetEquipped" })
+        bindToggle(farmTab, "Buy Egg if None Grows", "", { "Farm", "BuyEgg" })
+        bindPickSimple(farmTab, "Egg to Buy", "", { "Farm", "EggToBuy" }, Interface.EGG_NAMES, false)
+        farmTab:Space()
+
+        -- Potions & Neon
+        local growthSection = farmTab:Section({ Title = "Potions & Neon" })
+        bindToggle(farmTab, "Use Potions",
+            "Uses every farming potion on the growing pet",
+            { "Farm", "AutoPotions", "Enabled" })
+        bindToggle(farmTab, "Auto Neon Pets",
+            "4 full grown of same kind → 1 neon",
+            { "Farm", "AutoNeon", "Enabled" })
+        bindToggle(farmTab, "Auto Mega Neon Pets",
+            "4 neons of same kind → 1 mega neon",
+            { "Farm", "AutoNeon", "Mega" })
+
+        -- ── EVENT tab ──────────────────────────────────────────────────────────
+        local eventTab = Window:Tab({
+            Title = "Event",
+            Icon  = "solar:ghost-bold",
+        })
+
+        local halloweenSection = eventTab:Section({ Title = "Halloween 2026" })
+        bindToggle(eventTab, "Ghost Gallery",
+            "Joins every round and vacuums the ghosts (Rusty Keys)",
+            { "Farm", "Event", "GhostGallery" })
+        bindToggle(eventTab, "Join by Zone",
+            "Joins Ghost Gallery by standing in the Manor circle",
+            { "Farm", "Event", "GhostJoinByZone" })
+        bindToggle(eventTab, "Auto Hauntlet",
+            "Auto Hauntlet — join runs, pick safer doors, use keys/items",
+            { "Farm", "Event", "Hauntlet" })
+        bindToggle(eventTab, "Hauntlet before Ghost Gallery",
+            "A Hauntlet run comes first when a Ghost Gallery round is near",
+            { "Farm", "Event", "HauntletFirst" })
+        bindToggle(eventTab, "Use the game's teleport prompt",
+            "Home before a minigame, then Yes on the game's own Teleport prompt (fewer white screens)",
+            { "Farm", "Event", "UsePrompt" })
+        bindPickSimple(eventTab, "Door move",
+            "How the bot reaches a door: tween (smooth), walk, or teleport",
+            { "Farm", "Event", "HauntletMove" },
+            { { "tween", "Tween (smooth)" }, { "walk", "Walk" }, { "tp", "Teleport" } }, false)
+        bindSlider(eventTab, "Move time",
+            "Tween: seconds to reach a door (shorter = faster)",
+            { "Farm", "Event", "HauntletMoveSeconds" }, 0.1, 5, 0.1, "s")
+        bindToggle(eventTab, "Auto Stray Cat", "", { "Farm", "Event", "StrayCat" })
+        eventTab:Space()
+
+        local cryptSection = eventTab:Section({ Title = "Crypt" })
+        bindToggle(eventTab, "Use Rusty Keys",
+            "Opens Crypt graves with your Rusty Keys; pick below what to open",
+            { "Farm", "Event", "Crypt" })
+        bindToggle(eventTab, "Auto Mummy Spider",
+            "Bottom of the Crypt: takes the Mummy Spider",
+            { "Farm", "Event", "MummySpider" })
+        bindPickSimple(eventTab, "Open",
+            "What a Rusty Key opens, in this order",
+            { "Farm", "Event", "CryptOpen" }, Interface.CRYPT_NAMES, true)
+        bindToggle(eventTab, "Give Twigs to Nest",
+            "Has a Crypt Twig: takes it to the Hotel nest",
+            { "Farm", "Event", "PigeonNest" })
+        bindToggle(eventTab, "Auto Nest",
+            "Twig graves first until the nest is built",
+            { "Farm", "Event", "AutoNest" })
+        bindToggle(eventTab, "Auto Skelicorn",
+            "Lightning Lever from the Crypt → machine by the Manor → 1 Skelicorn (120k candy)",
+            { "Farm", "Event", "AutoSkelicorn" })
+        eventTab:Space()
+
+        local penEventSection = eventTab:Section({ Title = "Pet Pen" })
+        bindSlider(eventTab, "Pen Slots",
+            "4 free slots; 5 with the extra-slot pass",
+            { "Farm", "Event", "PetPenSlots" }, 4, 5, 1)
+        bindSlider(eventTab, "Min Bucks to Stock",
+            "Buys pen eggs only above this Bucks reserve",
+            { "Farm", "Event", "PetPenStockMinBucks" }, 0, 5000, 50, "B")
+        eventTab:Space()
+
+        local candySection = eventTab:Section({ Title = "Candy Shop" })
+        local candy = type(event) == "table" and event.CandyPets or nil
         if type(candy) == "table" then
-            local shopBox = eventTab:CreateGroupbox({ Name = "Candy Shop", Icon = I("game:candy"), Column = col(2) }, "shop")
-            bindToggle(shopBox, "candyOn", "game:candy", "Auto buy", { "Farm", "Event", "CandyPets", "Enabled" },
-                "Buys the pets picked below with candy, as many as the candy pays for")
+            bindToggle(eventTab, "Auto buy",
+                "Buys the pets picked below with candy, as many as the candy pays for",
+                { "Farm", "Event", "CandyPets", "Enabled" })
+            local SHOP_NAMES = Interface.SHOP_NAMES or {
+                halloween_2026_jump_scare      = "Jump Scare",
+                halloween_2026_jacobean_pigeon = "Jacobean Pigeon",
+                halloween_2026_skelicorn       = "Skelicorn",
+            }
+            local function prettyKind(id)
+                return (id:gsub("halloween_%d+_", ""):gsub("_", " "):gsub("^%l", string.upper))
+            end
+            local function commas(n)
+                return tostring(n):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+            end
             local shopChoices = {}
             for _, entry in ipairs(type(candy.Buy) == "table" and candy.Buy or {}) do
                 if type(entry) == "table" and type(entry.id) == "string" then
-                    table.insert(shopChoices, { entry.id, string.format("%s (%s candy)", Interface.SHOP_NAMES[entry.id]
-                        or prettyKind(entry.id), commas(entry.price)) })
+                    local name  = SHOP_NAMES[entry.id] or prettyKind(entry.id)
+                    local label = entry.price
+                        and string.format("%s (%s candy)", name, commas(entry.price))
+                        or  (name .. " (box)")
+                    table.insert(shopChoices, { entry.id, label })
                 end
             end
-            bindPick(shopBox, "candyPick", "item:halloween_2026_jump_scare|shopping-bag", "Buy", { "Farm", "Event", "CandyPets", "Pick" }, shopChoices,
-                { multi = true, placeholder = "Pick what to buy", tooltip = "No limit: bought whenever the candy is enough" })
+            bindPickSimple(eventTab, "Buy",
+                "No limit: bought whenever the candy is enough",
+                { "Farm", "Event", "CandyPets", "Pick" }, shopChoices, true)
+            if type(candy.MaxBuy) ~= "boolean" then candy.MaxBuy = false end
+            bindToggle(eventTab, "Max buy",
+                "On: as many as your candy pays for, in one purchase. Off: one every 0.5 s until the candy runs out",
+                { "Farm", "Event", "CandyPets", "MaxBuy" })
+            if type(candy.KeepCandy) ~= "number" then candy.KeepCandy = 0 end
+            if type(candy.KeepBucks) ~= "number" then candy.KeepBucks = 0 end
+            bindSlider(eventTab, "Keep candy",
+                "Candy the shop never spends",
+                { "Farm", "Event", "CandyPets", "KeepCandy" }, 0, 5000000, 1000, "")
+            bindSlider(eventTab, "Keep Bucks",
+                "Bucks the shop never spends (boxes sold for Bucks)",
+                { "Farm", "Event", "CandyPets", "KeepBucks" }, 0, 1000000, 100, "")
         end
-        local eventInfoBox = eventTab:CreateGroupbox({ Name = "Event status", Icon = I("game:candy"), Column = col(2) }, "eventInfo")
-        local eventInfo = eventInfoBox:CreateParagraph({ Name = "Your event", Icon = I("ghost"), Content = "Waiting for your data..." },
-            "eventText")
-        setupSection = Window:CreateTabSection("Setup")
-        local webhookTab = track(setupSection:CreateTab({ Name = "Webhook", Icon = I("bell"), Columns = columns }, "webhook"))
-        local hookBox = webhookTab:CreateGroupbox({ Name = "Discord webhook", Icon = I("bell"), Column = 1 }, "hook")
-        local function shortUrl(url)
-            if url == "" then
-                return ""
+
+        -- ── CONFIG tab ─────────────────────────────────────────────────────────
+        local configTab = Window:Tab({
+            Title = "Config",
+            Icon  = "solar:settings-bold",
+        })
+
+        -- Configs section
+        local configsSection = configTab:Section({ Title = "Saved Configs" })
+        local typedName = ""
+        uiInput(configTab, "Config Name", "Name for saving", "e.g. main farm", "", function(text)
+            typedName = tostring(text or "")
+        end)
+
+        local selected = nil
+        local configDropdown
+        local function configOptions()
+            local opts = {}
+            for _, name in ipairs(Interface.listConfigs()) do
+                table.insert(opts, { Title = name })
             end
-            return string.sub(url, 1, 24) .. "..."
+            return opts
         end
-        local hookInput = bindText(hookBox, "hookUrl", "link", "Webhook URL", { "Notifications", "Webhooks", "Summary" },
-            "https://...", function(url)
-                if url ~= "" and not Config.isValidWebhookUrl(url) then
-                    return false, "That is not a Discord webhook URL (Channel settings > Integrations > Webhooks)"
-                end
-                if url ~= "" then
-                    write({ "Notifications", "Enabled" }, true)
-                end
-                notify("Webhook", url == "" and "Webhook removed." or "Saved on this device. Press 'Send test message'.",
-                    "check")
-                return true
-            end, shortUrl)
-        bindText(hookBox, "hookUser", "at-sign", "User ID", { "Notifications", "PingDiscordUserId" },
-            "123456789...", function(id)
-                if id ~= "" and not string.match(id, "^%d+$") then
-                    return false, "Digits only (Discord: Settings > Advanced > Developer Mode, then right click yourself > Copy ID)"
-                end
-                return true
-            end)
-        bindToggle(hookBox, "hookPing", "bell", "Ping me", { "Notifications", "Ping" }, "@mentions you on the messages picked below")
-        local pingChoices = {}
-        for _, flag in ipairs(Interface.PING_FLAGS) do
-            table.insert(pingChoices, { flag, Interface.PING_NAMES[flag] or flag })
-        end
-        local pingKeys = {}
-        for _, flag in ipairs(Interface.PING_FLAGS) do
-            table.insert(pingKeys, "Notifications.PingOn." .. flag)
-        end
-        bindPick(hookBox, "pingOn", "at-sign", "Ping me on", nil, pingChoices, {
-            multi = true,
-            placeholder = "No pings",
-            tooltip = "Which messages @mention you",
-            keys = pingKeys,
-            get = function()
-                local values = {}
-                for _, flag in ipairs(Interface.PING_FLAGS) do
-                    if read({ "Notifications", "PingOn", flag }) == true then
-                        table.insert(values, flag)
-                    end
-                end
-                return values
-            end,
-            set = function(values)
-                for _, flag in ipairs(Interface.PING_FLAGS) do
-                    write({ "Notifications", "PingOn", flag }, table.find(values, flag) ~= nil)
-                end
+        configDropdown = configTab:Dropdown({
+            Title    = "Saved Configs",
+            Values   = configOptions(),
+            Callback = function(sel)
+                selected = sel and (sel.Title or sel) or nil
             end,
         })
-        bindToggle(hookBox, "hookSummary", "file-text", "Send summary", { "Notifications", "SendSummary" },
-            "A summary message (needs done, Bucks, pet) every few minutes")
-        bindSlider(hookBox, "summaryMinutes", "timer", "Summary every", { "Notifications", "SummaryIntervalMinutes" }, 1, 120, 1, "min")
-        actionButton(hookBox, "hookTest", "send", "Send test message", "Sends one test message to your webhook.", function()
-            return callApi("TestWebhook")
-        end)
-        local hookState = hookBox:CreateLabel({ Name = "Webhook: checking...", Icon = I("info") }, "hookState")
-        local messagesBox = webhookTab:CreateGroupbox({ Name = "Messages", Icon = I("scroll-text"), Column = col(2) }, "messages")
-        bindToggle(messagesBox, "hookTasks", "badge-check", "Each finished need", { "Notifications", "SendOnTaskComplete" })
-        bindToggle(messagesBox, "hookKicks", "octagon-x", "Kick / disconnect", { "Notifications", "SendOnKick" })
-        bindToggle(messagesBox, "hookErrors", "triangle-alert", "Errors", { "Notifications", "SendOnError" })
-        bindToggle(messagesBox, "hookStartStop", "power", "Start / stop", { "Notifications", "SendOnStartStop" })
-        bindToggle(messagesBox, "hookName", "paw-print", "Show my Roblox name", { "Notifications", "IncludeUsername" })
-        bindText(messagesBox, "hookAlerts", "link", "Alerts URL", { "Notifications", "Webhooks", "Alerts" },
-            "https://...", function(url)
-                if url ~= "" and not Config.isValidWebhookUrl(url) then
-                    return false, "That is not a Discord webhook URL"
-                end
-                return true
-            end, shortUrl)
-        local configTab = track(setupSection:CreateTab({ Name = "Config", Icon = I("settings"), Columns = columns }, "config"))
-        local configsBox = configTab:CreateGroupbox({ Name = "Configs", Icon = I("save"), Column = 1 }, "configs")
-        local typedName = ""
-        local selected = nil
-        local nameInput = configsBox:CreateInput({
-            Name = "Config name",
-            Icon = I("file-text"),
-            CurrentValue = "",
-            PlaceholderText = "e.g. main farm",
-            Enter = false,
-            Callback = function(text)
-                typedName = tostring(text or "")
-            end,
-        }, "configName")
-        local function configChoices()
-            local list = {}
-            for _, name in ipairs(Interface.listConfigs()) do
-                table.insert(list, name)
-            end
-            return list
-        end
-        local configLabel = configsBox:CreateLabel({ Name = "Saved configs", Icon = I("layers") }, "configList")
-        local configDropdown = configLabel:AddDropdown({
-            Options = configChoices(),
-            CurrentOption = {},
-            MultipleOptions = false,
-            Required = false,
-            Placeholder = "Pick a saved config",
-            Callback = function(picked)
-                local name = type(picked) == "table" and picked[1] or picked
-                selected = (type(name) == "string" and name ~= "") and name or nil
-            end,
-        }, "Dropdown")
-        fitPopup(configDropdown)
-        local autoloadLabel
-        local function updateAutoloadInfo()
-            pcall(function()
-                local name = settings.Autoload
-                autoloadLabel:Set({ Name = (type(name) == "string" and name ~= "") and fit(T("Autoload: '%s' at start", name),
-                    rowWidth) or "Autoload: off" })
-            end)
-        end
-        local function refreshConfigList(pick)
-            selected = pick or selected
-            pcall(function()
-                configDropdown:Set({ Options = configChoices(), CurrentOption = selected and { selected } or {} })
-            end)
-        end
+
         local function snapshot()
             local values = {}
             for key in pairs(handle.bound) do
@@ -5351,711 +3833,226 @@ __moduleSources["Services/Interface"] = function(...)
             end
             return values
         end
-        actionButton(configsBox, "configSave", "save", "Save as new config", "Saves every setting of the window under the name above.",
+        local function refreshConfigList(pick)
+            selected = pick or selected
+            pcall(function()
+                configDropdown:Refresh(configOptions(), selected and { Title = selected } or nil)
+            end)
+        end
+
+        uiButton(configTab, "Save as New Config",
+            "Saves every window setting under the name above",
             function()
-                local name = Interface.configName(typedName ~= "" and typedName or tostring(nameInput.Values.CurrentValue or ""))
-                if name == "" then
-                    return false, "Type a name first"
-                end
+                local name = Interface.configName(typedName)
+                if name == "" then return false, "Type a name first" end
                 if table.find(Interface.listConfigs(), name) then
-                    return false, "'" .. name .. "' exists: pick it and press Overwrite"
+                    return false, "'" .. name .. "' already exists: pick it and press Overwrite"
                 end
                 local ok, result = Interface.writeConfig(name, snapshot())
-                if ok then
-                    refreshConfigList(name)
-                end
+                if ok then refreshConfigList(name) end
                 return ok, ok and ("Saved '" .. name .. "'") or result
             end)
-        actionButton(configsBox, "configOverwrite", "refresh-cw", "Overwrite selected", "Saves the current settings into the picked config.",
+        uiButton(configTab, "Overwrite Selected",
+            "Saves current settings into the selected config",
             function()
-                if not selected then
-                    return false, "Pick a saved config first"
-                end
+                if not selected then return false, "Pick a config first" end
                 local ok, result = Interface.writeConfig(selected, snapshot())
                 return ok, ok and ("Overwrote '" .. selected .. "'") or result
             end)
-        actionButton(configsBox, "configLoad", "download", "Load selected", "Puts the picked config's settings in place now.",
+        uiButton(configTab, "Load Selected",
+            "Loads the selected config's settings now",
             function()
-                if not selected then
-                    return false, "Pick a saved config first"
-                end
+                if not selected then return false, "Pick a config first" end
                 local values = Interface.readConfig(selected)
-                if not values then
-                    return false, "Could not read '" .. selected .. "'"
-                end
+                if not values then return false, "Could not read '" .. selected .. "'" end
                 local count = 0
-                for key, value in pairs(values) do
+                for key, val in pairs(values) do
                     if Interface.canSave(key) and not Interface.PRIVATE_KEYS[key] then
-                        local tbl, leaf = Interface.resolve(config, splitPath(key))
+                        local path = splitPath(key)
+                        local tbl, leaf = Interface.resolve(config, path)
                         local current = type(tbl) == "table" and tbl[leaf]
-                        local fits = current ~= nil and (type(value) == "table" and isStringList(current) and isStringList(value)
-                            or type(current) == type(value))
-                        if fits then
-                            write(splitPath(key), deepCopy(value))
-                            count += 1
+                        if current ~= nil then
+                            local parsed
+                            if type(current) == "boolean" then
+                                parsed = (val == "true")
+                            elseif type(current) == "number" then
+                                parsed = tonumber(val)
+                            elseif type(current) == "string" then
+                                parsed = val
+                            elseif type(current) == "table" then
+                                parsed = {}
+                                for item in string.gmatch(string.gsub(tostring(val), "^%[(.*)%]$", "%1"), "[^,]+") do
+                                    table.insert(parsed, item)
+                                end
+                            end
+                            if parsed ~= nil then write(path, parsed); count += 1 end
                         end
                     end
                 end
                 refresh()
                 return true, string.format("Loaded '%s' (%d settings)", selected, count)
             end)
-        actionButton(configsBox, "configDelete", "trash-2", "Delete selected", "Deletes the picked config file.", function()
-            if not selected then
-                return false, "Pick a saved config first"
-            end
-            local name = selected
-            confirm(Window, "Delete '" .. name .. "'?", "The config file is deleted from this device.", "trash-2", "Delete", function()
-                Interface.deleteConfig(name)
-                if settings.Autoload == name then
-                    write({ "Interface", "Autoload" }, "")
-                    updateAutoloadInfo()
-                end
+        uiButton(configTab, "Delete Selected",
+            "Deletes the selected config file",
+            function()
+                if not selected then return false, "Pick a config first" end
+                Interface.deleteConfig(selected)
                 selected = nil
                 refreshConfigList(nil)
-                notify("Configs", "Deleted '" .. name .. "'", "trash-2")
+                return true, "Deleted."
             end)
-            return true, false
-        end)
-        bindToggle(configsBox, "autosave", "save", "Autosave", { "Interface", "RememberSettings" },
-            "On: every change in the window is kept on this device. Off: changes last until you leave; save a config instead")
-        local autoloadToggle = configsBox:CreateToggle({
-            Name = "Autoload selected",
-            Icon = I("rocket"),
-            Tooltip = "At every start, the config picked above is put in place",
-            CurrentValue = type(settings.Autoload) == "string" and settings.Autoload ~= "",
-            Style = 2,
-            Callback = function(value)
-                if value then
-                    if not selected then
-                        notify("Autoload", "Pick a saved config first", "triangle-alert")
-                        write({ "Interface", "Autoload" }, "")
-                    else
-                        write({ "Interface", "Autoload" }, selected)
-                    end
-                else
-                    write({ "Interface", "Autoload" }, "")
+        bindToggle(configTab, "Autosave",
+            "On: every change is kept on this device. Off: changes reset on next start",
+            { "Interface", "RememberSettings" })
+        configTab:Space()
+
+        -- Settings section
+        local settingsSection = configTab:Section({ Title = "Settings" })
+        bindToggle(configTab, "Anti-AFK",            "Clicks Roblox idle warning", { "Farm", "AntiAfk" })
+        bindToggle(configTab, "Auto Click Play",     "", { "Farm", "AutoAcceptMenu" })
+        bindToggle(configTab, "Camera Guard",        "Zooms camera back out if it goes inside character", { "Farm", "CameraGuard" })
+        bindToggle(configTab, "Event Pop-ups",       "Pop-ups for keys, neon, purchases, rounds", { "Interface", "Toasts" })
+        bindToggle(configTab, "Autoclose GUI",       "Window starts hidden; press keybind to show", { "Interface", "StartHidden" })
+        bindPickSimple(configTab, "Language", "", { "Interface", "Language" },
+            (function()
+                local choices = { { "Auto", "Auto" } }
+                for _, language in ipairs(Lang.LANGUAGES or {}) do
+                    table.insert(choices, { language.code, language.name })
                 end
-                updateAutoloadInfo()
-            end,
-        }, "autoload")
-        remember("Interface.Autoload", function()
-            local on = type(settings.Autoload) == "string" and settings.Autoload ~= ""
-            if autoloadToggle.Values.CurrentValue ~= on then
-                autoloadToggle:Set({ CurrentValue = on })
-            end
-            updateAutoloadInfo()
-        end)
-        autoloadLabel = configsBox:CreateLabel({ Name = "Autoload: off", Icon = I("info") }, "autoloadInfo")
-        updateAutoloadInfo()
-        savedInfo = configsBox:CreateLabel({ Name = "", Icon = I("save") }, "savedInfo")
-        updateSavedInfo()
-        local look = configTab:CreateGroupbox({ Name = "Settings", Icon = I("settings"), Column = 1 }, "settings")
-        bindToggle(look, "antiAfk", "shield-check", "Anti-AFK", { "Farm", "AntiAfk" }, "Clicks on Roblox's idle warning (no idle kick)")
-        bindToggle(look, "autoMenu", "mouse-pointer-click", "Auto click Play (menu)", { "Farm", "AutoAcceptMenu" })
-        bindToggle(look, "cameraGuard", "camera", "Camera guard", { "Farm", "CameraGuard" },
-            "The camera went inside your character: it is zoomed back out")
-        bindToggle(look, "toasts", "bell", "Event pop-ups", { "Interface", "Toasts" }, "Pop-ups for keys, neon, purchases, rounds")
-        bindToggle(look, "startHidden", "eye-off", "Autoclose GUI on execute", { "Interface", "StartHidden" },
-            "The window starts hidden: " .. (touch and "the round paw button" or "the hide / show key") .. " opens it")
-        local canTheme = type(Library.Themes) == "table" and type(Library.SetTheme) == "function"
-        local function applyTheme(name)
-            local choice = canTheme and Interface.themeChoice(Library, name) or nil
-            if choice ~= nil then
-                pcall(function()
-                    Library:SetTheme(choice)
-                end)
-                task.delay(0.2, function()
-                    if paintAll then
-                        paintAll()
-                    end
-                end)
-            end
-            return choice ~= nil
-        end
-        if canTheme then
-            local themes = {}
-            for _, name in ipairs(Interface.THEME_NAMES) do
-                if Interface.themeChoice(Library, name) ~= nil then
-                    table.insert(themes, { name, name })
-                end
-            end
-            for _, name in ipairs(Interface.THEMES) do
-                if Library.Themes and Library.Themes[name] ~= nil then
-                    table.insert(themes, { name, name })
-                end
-            end
-            if #themes > 1 then
-                bindPick(look, "theme", "palette", "Theme", { "Interface", "Theme" }, themes, { onPick = applyTheme })
-            end
-        end
-        do
-            local autoCode = Lang.pick("Auto", country, locale)
-            local autoInfo = Lang.info(autoCode)
-            local choices = { { "Auto", T("Auto") .. " (" .. Lang.flag(country or autoInfo.country) .. " " .. autoInfo.name .. ")" } }
-            for _, language in ipairs(Lang.LANGUAGES) do
-                table.insert(choices, { language.code, Lang.flag(language.country) .. " " .. language.name })
-            end
-            bindPick(look, "language", "languages", "Language", { "Interface", "Language" }, choices, {
-                tooltip = "Which language the window uses (Auto: your country's)",
-                onPick = function()
-                    rebuild()
-                end,
-            })
-        end
-        local hideKey
+                return choices
+            end)(), false)
         if not touch then
-            local keys = {}
-            for _, key in ipairs(Interface.KEYBINDS) do
-                table.insert(keys, { key, key })
-            end
-            bindPick(look, "keybind", "keyboard", "Hide / show key", { "Interface", "Keybind" }, keys, { onPick = function(key)
-                pcall(function() Library.WindowKeybind = key end)
-                pcall(function()
-                    hideKey:Set({ Name = "Hide / show: " .. key })
-                end)
-            end })
+            bindPickSimple(configTab, "Hide/Show Key", "", { "Interface", "Keybind" },
+                (function()
+                    local opts = {}
+                    for _, k in ipairs(Interface.KEYBINDS) do table.insert(opts, { k, k }) end
+                    return opts
+                end)(), false)
         end
-        do
-            local scaleChoices = {}
-            for _, value in ipairs(Interface.UI_SCALES) do
-                local percent = function(n)
-                    return tostring(math.floor(n * 100 + 0.5)) .. "%"
-                end
-                table.insert(scaleChoices, { value, value == "Auto"
-                    and (T("Auto") .. " (" .. percent(Interface.scaleFor("Auto", touch, hasViewport and viewport or nil)) .. ")")
-                    or percent(tonumber(value)) })
-            end
-            bindPick(look, "uiScale", "scaling", "UI scale", { "Interface", "UIScale" }, scaleChoices, {
-                tooltip = "How big the window is drawn (Auto: smaller on phones)",
-                onPick = function()
-                    rebuild()
-                end,
-            })
+        configTab:Space()
+
+        -- Presets section
+        local presetsSection = configTab:Section({ Title = "Developer Presets" })
+        for _, preset in ipairs(Config.Presets or {}) do
+            uiButton(configTab, preset.name, preset.about or "", function()
+                local values = Config.presetValues and Config.presetValues(preset.id,
+                    type(config.Farm.Focus) == "string" and config.Farm.Focus or "")
+                if not values then return false, "Preset not available" end
+                for _, entry in ipairs(values) do write(entry[1], deepCopy(entry[2])) end
+                config.Preset = preset.id
+                refresh()
+                local on, total = Config.countFeatures and Config.countFeatures(config) or 0, 0
+                return true, string.format("Preset applied. %d features on.", on)
+            end)
         end
-        bindToggle(look, "descriptions", "info", "Help lines", { "Interface", "Descriptions" })
-        look:CreateButton({
-            Name = "Reset to loader settings",
-            Icon = I("eraser"),
-            IndicatorStyle = 1,
-            Tooltip = "Every change made in the window goes back to the loader's value, now and at the next start.",
-            Callback = function()
-                confirm(Window, "Reset to loader settings?", "Every setting you changed in the window goes back to the loader's "
-                    .. "value, now and at the next start. Saved configs stay.", "eraser", "Reset", function()
-                    local saved = Interface.saved
-                    quiet = true
-                    for key, original in pairs(saved.originals) do
-                        local tbl, leaf = Interface.resolve(config, splitPath(key))
-                        if type(tbl) == "table" then
-                            tbl[leaf] = deepCopy(original)
-                        end
-                    end
-                    quiet = false
-                    Interface.saved = { changes = {}, originals = {} }
-                    Interface.writeSaved(Interface.saved.changes)
-                    refresh()
-                    applyTheme(settings.Theme)
-                    pcall(function() Library.WindowKeybind = tostring(settings.Keybind or "RightShift") end)
-                    updateSavedInfo()
-                    updateAutoloadInfo()
-                    notify("Settings", "Back to the loader's settings.", "eraser")
-                end)
-            end,
-        }, "forget")
-        look:CreateButton({
-            Name = "What this script does (report)",
-            Icon = I("file-text"),
-            IndicatorStyle = 1,
-            Callback = function()
-                api.Disclosure()
-                notify("Transparency report", "Printed to the console (F9 / executor console).", "file-text")
-            end,
-        }, "disclosure")
-        hideKey = look:CreateLabel({ Name = touch and "Hide / show: tap the round paw button" or ("Hide / show: " .. keybind),
-            Icon = I(touch and "smartphone" or "keyboard") }, "hideKey")
-        look:CreateParagraph({ Name = "Closed the window?", Icon = I("rotate-ccw"),
-            Content = "Run: getgenv().AdoptMeFarm.OpenInterface()" }, "reopen")
-        local presets = configTab:CreateGroupbox({ Name = "Presets by the developer", Icon = I("sliders-horizontal"),
-            Column = col(2) }, "presets")
-        -- v2.1.4 Mega a Pet: the pet / egg the "Mega a Pet" preset (and Farm.Focus at run time) works on
-        local focusChoices = { { "", "Nothing (normal farm)" } }
-        local focusShown = { [""] = true }
-        local function addFocus(id, label)
-            if type(id) == "string" and id ~= "" and not focusShown[id] then
-                focusShown[id] = true
-                table.insert(focusChoices, { id, label or prettyKind(id) })
-            end
-        end
-        addFocus("halloween_2026_tomb_spider", "Mummy Spider (Crypt)")
-        addFocus("halloween_2026_skelicorn", "Skelicorn (120k candy)")
-        for id, label in pairs(Interface.SHOP_NAMES) do
-            addFocus(id, label .. " (candy: buy 5, raise 1, 4 in the Pet Pen)")
-        end
-        for _, egg in ipairs(Interface.EGG_NAMES) do
-            addFocus(egg[1], egg[2] .. " (buy + hatch on repeat)")
-        end
-        for _, kind in ipairs(catalog.petKinds) do
-            if not string.find(kind, "_egg$") then
-                addFocus(kind)
-            end
-        end
-        bindPick(presets, "focusPet", "crosshair", "Mega a Pet: pick", { "Farm", "Focus" }, focusChoices, {
-            tooltip = "Egg: bought and hatched on repeat. Pet: grown, neon, mega neon, its copies in the Pet Pen. "
-                .. "Works right away; the 'Mega a Pet' button also turns on needs, potions, neon and the Pet Pen.",
-            nameOf = function(value)
-                return value == "" and "Nothing (normal farm)" or prettyKind(value)
-            end,
+        configTab:Space()
+
+        -- Advanced section
+        local advancedSection = configTab:Section({ Title = "Advanced" })
+        bindToggle(configTab, "Smart Priority",         "", { "Farm", "SmartPriority" })
+        bindToggle(configTab, "Stuck Recovery",         "Go home when stuck", { "Farm", "StuckRecovery", "Enabled" })
+        bindSlider(configTab, "Stuck After (min)",      "", { "Farm", "StuckRecovery", "Seconds" }, 1, 10, 0.5, "min")
+        bindToggle(configTab, "Rejoin When Stuck",      "Rejoins a PUBLIC server", { "Farm", "AutoRejoin" })
+        bindSlider(configTab, "Rejoin After (min)",     "", { "Farm", "StuckRejoinSeconds" }, 1, 10, 0.5, "min")
+        bindToggle(configTab, "Game Travel (Doors)",    "", { "Farm", "GameTravel" })
+        bindToggle(configTab, "Go Home by Respawn",     "", { "Farm", "HomeByRespawn" })
+        bindToggle(configTab, "Food Bowl Trips",        "", { "Farm", "FoodBowlTrip" })
+        bindPickSimple(configTab, "Camp / Beach",       "", { "Farm", "SpotTravel" },
+            { { "teleport", "Teleport" }, { "door", "Shop Door" } }, false)
+        bindSlider(configTab, "Retry Failed After (s)", "", { "Farm", "FailureCooldownSeconds" }, 1, 120, 1, "s")
+        bindSlider(configTab, "Fails Before Rest",      "", { "Farm", "MaxConsecutiveFailures" }, 1, 10, 1)
+        bindSlider(configTab, "Rest For (min)",         "", { "Farm", "DisableMinutes" }, 0, 60, 1, "min")
+
+        -- ── INFO tab ───────────────────────────────────────────────────────────
+        local infoTab = Window:Tab({
+            Title = "Info",
+            Icon  = "solar:info-square-bold",
         })
-        local function applyPreset(id, start)
-            local values, preset = Config.presetValues(id, type(config.Farm.Focus) == "string" and config.Farm.Focus or "")
-            if not values then
-                return
-            end
-            for _, entry in ipairs(values) do
-                write(entry[1], deepCopy(entry[2]))
-            end
-            if start then
-                write({ "Farm", "Enabled" }, true)
-            end
-            config.Preset = preset.id
-            refresh()
-            if refreshStatus then
-                refreshStatus()
-            end
-            local on, total = Config.countFeatures(config)
-            notify("Preset: " .. preset.name, string.format("%d of %d features on. %s", on, total,
-                config.Farm.Enabled and "The farm is running." or "Switch 'Farm running' on to start."), preset.icon)
-        end
-        for _, preset in ipairs(Config.Presets) do
-            presets:CreateButton({
-                Name = preset.name,
-                Icon = I(preset.icon),
-                IndicatorStyle = 1,
-                Tooltip = preset.about,
-                Callback = function()
-                    local isOff = preset.id == "Off"
-                    local focus = type(config.Farm.Focus) == "string" and config.Farm.Focus or ""
-                    if preset.pick and focus == "" then
-                        notify(preset.name, "Pick a pet or an egg in 'Mega a Pet: pick' first.", "crosshair")
-                        return
-                    end
-                    local about = preset.pick and (Lang.tr(preset.about) .. " " .. Lang.tr("Picked:") .. " " .. prettyKind(focus) .. ".")
-                        or preset.about
-                    confirm(Window, preset.name, about .. (isOff and "" or " Your other settings stay."), preset.icon,
-                        "Apply", function()
-                            applyPreset(preset.id, false)
-                        end, not isOff and { Name = "Apply + start", Icon = I("power"), Callback = function()
-                            applyPreset(preset.id, true)
-                        end } or nil)
-                end,
-            }, "preset" .. preset.id)
-        end
-        local advanced = configTab:CreateGroupbox({ Name = "Advanced", Icon = I("wrench"), Column = col(2) }, "advanced")
-        bindToggle(advanced, "smartPriority", "target", "Needs doable here first", { "Farm", "SmartPriority" })
-        bindToggle(advanced, "stuckRecovery", "rotate-ccw", "Stuck recovery (go home)", { "Farm", "StuckRecovery", "Enabled" })
-        bindSlider(advanced, "stuckSeconds", "hourglass", "Stuck after", { "Farm", "StuckRecovery", "Seconds" }, 1, 10, 0.5, "min",
-            nil, 60)
-        bindToggle(advanced, "rejoin", "refresh-cw", "Rejoin when stuck", { "Farm", "AutoRejoin" },
-            "No place / character: rejoins a PUBLIC server")
-        bindSlider(advanced, "stuckMinutes", "hourglass", "Rejoin after", { "Farm", "StuckRejoinSeconds" },
-            1, 10, 0.5, "min", nil, 60)
-        bindToggle(advanced, "gameTravel", "door-open", "Game travel (doors)", { "Farm", "GameTravel" })
-        bindToggle(advanced, "respawnHome", "rotate-ccw", "Go home by respawn", { "Farm", "HomeByRespawn" })
-        bindToggle(advanced, "bowlTrip", "utensils", "Food bowl trips", { "Farm", "FoodBowlTrip" })
-        bindPick(advanced, "spotTravel", "map-pin", "Camp / beach", { "Farm", "SpotTravel" },
-            { { "teleport", "Teleport" }, { "door", "Shop door" } })
-        bindSlider(advanced, "failCooldown", "timer", "Retry failed after", { "Farm", "FailureCooldownSeconds" }, 1, 120, 1, "s")
-        bindSlider(advanced, "failLimit", "octagon-x", "Fails before rest", { "Farm", "MaxConsecutiveFailures" }, 1, 10, 1, nil)
-        bindSlider(advanced, "restMinutes", "timer", "Rest for", { "Farm", "DisableMinutes" }, 0, 60, 1, "min")
-        if config.Logging then
-            local levels = {}
-            for _, level in ipairs(Interface.CONSOLE_LEVELS) do
-                table.insert(levels, { level, level })
-            end
-            bindPick(advanced, "consoleLevel", "scroll-text", "Console shows", { "Logging", "ConsoleLevel" }, levels)
-        end
-        local supportSection = Window:CreateTabSection("Support", false)
-        pcall(function()
-            supportSection.Instance.LayoutOrder = -2
-        end)
-        local supportTab = track(supportSection:CreateTab({ Name = "Support", Icon = I("heart-handshake"), Columns = columns }, "support"))
-        local developerBox = supportTab:CreateGroupbox({ Name = "Developer", Icon = I("code"), Column = 1 }, "developer")
-        local dev = Interface.DEVELOPER
-        local devCard = developerBox:CreateParagraph({
-            Name = dev.name .. "  •  " .. dev.user,
-            Icon = I("heart"),
-            Content = "Made by Shxdrag hub.\nThank you for using it!",
-        }, "devCard")
-        task.spawn(function()
-            local image = Interface.developerAvatar()
-            if not image or not alive then
-                return
-            end
-            for _ = 1, 30 do
-                if type(devCard) == "table" and devCard.Instance then
-                    break
-                end
-                task.wait(0.1)
-            end
-            pcall(function()
-                local avatar = Instance.new("ImageLabel")
-                avatar.Name = "AmeFarmAvatar"
-                avatar.BackgroundTransparency = 1
-                avatar.Size = UDim2.fromOffset(52, 52)
-                avatar.AnchorPoint = Vector2.new(1, 0.5)
-                avatar.Position = UDim2.new(1, -10, 0.5, 0)
-                avatar.Image = image
-                avatar.ZIndex = 10
-                local corner = Instance.new("UICorner")
-                corner.CornerRadius = UDim.new(1, 0)
-                corner.Parent = avatar
-                avatar.Parent = devCard.Instance
+
+        local infoSection = infoTab:Section({ Title = "About Shxdrag Hub" })
+        infoTab:Paragraph({ Title = "Shxdrag hub — Adopt Me Farm" })
+        infoTab:Paragraph({ Title = "WindUI by Footagesus" })
+        uiButton(infoTab, "Print Transparency Report",
+            "Prints what the script does to the console (F9)",
+            function()
+                api.Disclosure()
+                return true, "Printed to console (F9)"
             end)
-        end)
-        developerBox:CreateButton({
-            Name = "Copy Discord invite",
-            Icon = I("ph:discord-logo"),
-            IndicatorStyle = 1,
-            Callback = function()
-                copy("Discord", "https://discord.gg/" .. Interface.DISCORD_INVITE)
-            end,
-        }, "supportDiscord")
-        developerBox:CreateButton({
-            Name = "Copy problem report",
-            Icon = I("bug"),
-            IndicatorStyle = 1,
-            Tooltip = "Copies the last 120 lines of what the script did: paste it to the developer on Discord",
-            Callback = function()
-                local logger = options and options.logger
-                local text = logger and logger.problemReport and logger:problemReport() or "no log"
-                local copied = pcall(function()
-                    setclipboard(text)
-                end)
-                if logger and logger.saveProblemReport then
-                    logger:saveProblemReport()
-                end
-                notify("Problem report", copied and "Copied: paste it to the developer on Discord"
-                    or "Saved to AdoptMeFarm/problem_report.txt (your executor's workspace folder)", "bug")
-            end,
-        }, "problemReport")
-        developerBox:CreateButton({
-            Name = "Copy GitHub link",
-            Icon = I("link"),
-            IndicatorStyle = 1,
-            Callback = function()
-                copy("GitHub", dev.github)
-            end,
-        }, "github")
-        local executorInfo
-        local function executorText()
-            local name, player, players = "unknown", "?", "?"
-            pcall(function()
-                name = table.concat({ identifyexecutor() }, " ")
+        uiButton(infoTab, "Copy Re-Open Command",
+            "Copy the command to reopen the window if it closes",
+            function()
+                pcall(function() setclipboard("getgenv().AdoptMeFarm.OpenInterface()") end)
+                return true, "Copied: getgenv().AdoptMeFarm.OpenInterface()"
             end)
-            pcall(function()
-                local me = game:GetService("Players").LocalPlayer
-                player = tostring(me.DisplayName or me.Name) .. " (@" .. tostring(me.Name) .. ")"
-            end)
-            pcall(function()
-                players = tostring(#game:GetService("Players"):GetPlayers())
-            end)
-            local supported = false
-            for _, known in ipairs(Interface.SUPPORTED_EXECUTORS) do
-                supported = supported or string.find(string.lower(name), string.lower(known), 1, true) ~= nil
-            end
-            return table.concat({
-                T("Executor: %s", name),
-                T("Status: %s", T(supported and "supported" or "not tested with this script")),
-                T("Player: %s", player),
-                T("Server: %s players", players),
-                T("Script: v%s", shortVersion),
-            }, "\n")
-        end
-        if not homeTab then
-            local changelog = supportTab:CreateGroupbox({ Name = "Changelog", Icon = I("scroll-text"), Column = 1 }, "changelog")
-            changelog:CreateParagraph({
-                Name = "What's new in v" .. shortVersion,
-                Icon = I("sparkles"),
-                Content = "• " .. table.concat(Interface.CHANGELOG, "\n• "),
-            }, "changes")
-            local executorBox = supportTab:CreateGroupbox({ Name = "Executor", Icon = I("cpu"), Column = col(2) }, "executor")
-            executorInfo = executorBox:CreateParagraph({ Name = "Your setup", Icon = I("monitor"), Content = executorText() },
-                "executorInfo")
-        end
-        local donate = supportTab:CreateGroupbox({ Name = "Donate", Icon = I("heart"), Column = 1 }, "donate")
-        for index, entry in ipairs(Interface.DONATION_LINKS) do
-            donate:CreateButton({
-                Name = entry.name,
-                Icon = I(entry.icon),
-                IndicatorStyle = 1,
-                Callback = function()
-                    copy(entry.name, entry.link)
-                end,
-            }, "donateLink" .. index)
-        end
-        if #Interface.GAMEPASSES > 0 then
-            local passes = supportTab:CreateGroupbox({ Name = "Game passes", Icon = I("ticket"), Column = 1 }, "passes")
-            for index, entry in ipairs(Interface.GAMEPASSES) do
-                passes:CreateButton({
-                    Name = entry.name,
-                    Icon = I("ticket"),
-                    IndicatorStyle = 1,
-                    Callback = function()
-                        pcall(function()
-                            game:GetService("MarketplaceService"):PromptGamePassPurchase(game:GetService("Players").LocalPlayer, entry.id)
-                        end)
-                    end,
-                }, "pass" .. index)
-            end
-        end
-        local crypto = supportTab:CreateGroupbox({ Name = "Crypto (tap to copy)", Icon = I("bitcoin"), Column = col(2) }, "crypto")
-        crypto:CreateParagraph({
-            Name = "Correct network only",
-            Icon = I("triangle-alert"),
-            Content = "Send each coin only on the network written next to it. Tokens sent on another network are lost.",
-        }, "cryptoWarning")
-        for index, entry in ipairs(Interface.CRYPTO) do
-            crypto:CreateButton({
-                Name = entry.name,
-                Icon = I(entry.icon),
-                IndicatorStyle = 1,
-                Callback = function()
-                    copy(entry.name, entry.address)
-                end,
-            }, "crypto" .. index)
-        end
-        handle.openSettings = function()
-            return Interface.openTab(configTab)
-        end
-        if settings.Theme ~= nil and settings.Theme ~= "Starlight" and settings.Theme ~= "Default" then
-            applyTheme(settings.Theme)
-        end
-        local shown = {}
-        function tintIcon(element, color)
-            pcall(function()
-                element.Instance.Header.Icon.ImageColor3 = paletteColor(color)
-            end)
-        end
-        local function setText(element, key, fields)
-            local signature = (fields.Name or "") .. "\n" .. (fields.Content or "")
-            if shown[key] ~= signature then
-                shown[key] = signature
-                pcall(function()
-                    element:Set(fields)
-                end)
-            end
-        end
-        local function eventText(status)
-            local s = type(status) == "table" and status or {}
-            return table.concat({
-                T("Candy: %s (+%s)", commas(s.candy), commas(s.candyEarned or 0)),
-                T("Rusty Keys: %s  •  Twigs: %s", s.rustyKeys and tostring(s.rustyKeys) or "?",
-                    s.twigs and tostring(s.twigs) or "?"),
-                s.nestTwigs and T("Nest: %s / 8 twigs", tostring(s.nestTwigs)) or T("Nest: ?"),
-                s.nextRoundIn and T("Next Ghost Gallery in %s", clock(s.nextRoundIn)) or T("Next Ghost Gallery: unknown yet"),
-            }, "\n")
-        end
-        local dashboardReady, farmCardFrame, farmCard, serverChips = false, nil, nil, nil
-        local serverInfo, frames, framesSince = {}, 0, os.clock()
-        local function cardColors()
-            return { liveColor == "gray" and "witch" or liveColor, "night" }
-        end
-        local function copyJoinScript()
-            local okCopy = pcall(function()
-                setclipboard(string.format('game:GetService("TeleportService"):TeleportToPlaceInstance(%d, "%s", '
-                    .. 'game:GetService("Players").LocalPlayer)', game.PlaceId, game.JobId))
-            end)
-            notify("Join script", okCopy and "Copied: run it in your executor to join this server" or "Could not copy",
-                okCopy and "copy" or "triangle-alert")
-        end
-        local function setupDashboard()
-            if dashboardReady or not homeTab or not alive then
-                return
-            end
-            dashboardReady = true
-            farmCardFrame = Interface.findFarmCard(homeTab)
-            local okLayout, box = pcall(Interface.layoutDashboard, homeTab, farmCardFrame)
-            if farmCardFrame then
-                local okCard, parts = pcall(Interface.makeFarmCard, farmCardFrame)
-                farmCard = okCard and parts or nil
-                pcall(function()
-                    table.insert(connections, farmCardFrame.Interact.MouseButton1Click:Connect(function()
-                        Interface.openTab(mainTab)
-                    end))
-                end)
-            end
-            pcall(function()
-                Interface.localizeTree(homeTab.Instances.Page, { playerUser = true, playerDisplay = true }, connections)
-                Interface.localizeTree(homeTab.Instances.Button)
-            end)
-            local okStrip, chips, strip = pcall(Interface.serverStrip, homeTab)
-            if okStrip and chips then
-                serverChips = chips
-                pcall(function()
-                    table.insert(connections, (chips.joinButton or chips.join).MouseButton1Click:Connect(copyJoinScript))
-                end)
-                pcall(function()
-                    table.insert(connections, game:GetService("RunService").Heartbeat:Connect(function()
-                        frames += 1
-                    end))
-                end)
-                serverInfo.region = country
-                if not country then
-                    task.spawn(function()
-                        serverInfo.region = Interface.lookupCountry()
-                    end)
-                end
-                if okLayout and box then
-                    task.delay(1, function()
-                        pcall(Interface.clearStrip, strip, box)
-                    end)
-                end
-            end
-        end
-        local function readServer()
-            local now = os.clock()
-            serverInfo.fps = math.floor(frames / math.max(now - framesSince, 0.001) + 0.5)
-            frames, framesSince = 0, now
-            pcall(function()
-                local Players = game:GetService("Players")
-                serverInfo.players, serverInfo.maxPlayers = #Players:GetPlayers(), Players.MaxPlayers
-            end)
-            pcall(function()
-                serverInfo.ping = math.floor(game:GetService("Stats").PerformanceStats.Ping:GetValue() + 0.5)
-            end)
-            pcall(function()
-                serverInfo.uptime = workspace.DistributedGameTime
-            end)
-        end
-        local function setLabel(label, key, text)
-            if shown[key] ~= text then
-                shown[key] = text
-                pcall(function()
-                    label.Text = text
-                end)
-            end
-        end
+
+        -- ── Status refresh loop ────────────────────────────────────────────────
         local tick = 0
-        refreshStatus = function()
-            local okStatus, status = pcall(api.Status)
-            status = okStatus and status or nil
-            if stateHeader then
-                local title, text, state = Interface.stateHeader(status)
-                setText(stateHeader, "header", { Name = title, Content = text })
-                tintIcon(stateHeader, Interface.STATE_COLORS[state] or "gray")
-            end
-            for _, row in ipairs(Interface.statusRows(status, rowWidth)) do
-                if rowElements[row.key] then
-                    setText(rowElements[row.key], "row_" .. row.key, { Name = row.text })
-                    if row.dot then
-                        tintIcon(rowElements[row.key], Interface.STATE_COLORS[row.state] or "gray")
-                    end
-                end
-            end
-            setText(eventInfo, "event", { Content = eventText(status) })
-            local webhookOn = type(status) == "table" and status.webhooksOn == true
-            setText(hookState, "hook", { Name = webhookOn and T("Webhook: ON") or T("Webhook: OFF (no URL yet)") })
-            tintIcon(hookState, webhookOn and "green" or "gray")
-            if executorInfo and tick % 10 == 0 then
-                setText(executorInfo, "executor", { Content = executorText() })
-            end
-            if farmCard then
-                local okIcons, icons = false, nil
-                if type(api.Icons) == "function" then
-                    okIcons, icons = pcall(api.Icons)
-                end
-                pcall(Interface.fillFarmCard, farmCard, status, okIcons and icons or nil)
-            end
-            if serverChips then
-                readServer()
-                for key, text in pairs(Interface.serverChipTexts(serverInfo)) do
-                    if serverChips[key] then
-                        setLabel(serverChips[key], "chip_" .. key, text)
-                    end
-                end
-            end
-            local state = type(status) ~= "table" and "gray" or status.stopped and "blood" or not status.farmEnabled and "gray"
-                or (not status.ready or status.featuresOn == 0) and "moon" or "green"
-            if state ~= liveColor then
-                liveColor = state
-                pcall(Interface.tintGroupbox, boxes.live, liveColor)
-                if farmCardFrame then
-                    local tint = Interface.CARD_TINT
-                    pcall(Interface.tintFrame, farmCardFrame, cardColors(), tint.from, tint.to, tint.rotation, tint.see)
-                end
+        local function refreshStatus()
+            if not alive then return end
+            local ok, status = pcall(function()
+                return type(api.Status) == "function" and api.Status() or nil
+            end)
+            if ok and type(status) == "table" then
+                local headerTitle = Interface.stateHeader(status)
+                pcall(function()
+                    statusLabel:SetTitle("Status: " .. headerTitle)
+                end)
             end
         end
-        function paintAll()
-            paint()
-            if homeTab then
-                setupDashboard()
-                pcall(Interface.paintDashboard, homeTab, farmCardFrame and { [farmCardFrame] = cardColors() } or nil)
-            end
-        end
-        task.delay(0.3, paintAll)
-        task.delay(1.5, paintAll)
+
+        -- Toast queue
         local queue = {}
         if options.logger and options.logger.OnEntry then
             table.insert(connections, options.logger.OnEntry:Connect(function(level, category, message)
-                if not alive or settings.Toasts == false then
-                    return
-                end
+                if not alive or settings.Toasts == false then return end
                 message = tostring(message)
                 for _, toast in ipairs(Interface.TOASTS) do
                     if string.find(message, toast.pattern) then
-                        if #queue >= 3 then
-                            table.remove(queue, 1)
-                        end
-                        table.insert(queue, { title = toast.title, content = string.sub(message, 1, 140), icon = toast.icon })
+                        if #queue >= 3 then table.remove(queue, 1) end
+                        table.insert(queue, { title = toast.title, content = string.sub(message, 1, 140) })
                         break
                     end
                 end
             end))
         end
-        local descriptionsShown = showDescriptions
+
         task.spawn(function()
             while alive do
-                if tick % 2 == 0 then
-                    refreshStatus()
-                end
-                if (settings.Descriptions ~= false) ~= descriptionsShown then
-                    descriptionsShown = settings.Descriptions ~= false
-                    rebuild()
-                end
+                if tick % 2 == 0 then refreshStatus() end
                 tick += 1
                 task.wait(1)
             end
         end)
+
         task.spawn(function()
             while alive do
                 local nextToast = table.remove(queue, 1)
                 if nextToast then
-                    notify(nextToast.title, nextToast.content, nextToast.icon)
+                    notify(nextToast.title, nextToast.content)
                     task.wait(3.5)
                 else
                     task.wait(0.5)
                 end
             end
         end)
-        pcall(function() if type(Library.OnDestroy) == "function" then Library:OnDestroy(function() handle.Close() end) end end)
-        Interface.opened = (Interface.opened or 0) + 1
-        handle.startHidden = settings.StartHidden == true and Interface.opened == 1
-        if handle.startHidden then
-            task.delay(1, function()
-                for _, box in pairs(boxes) do
-                    if alive and type(box) == "table" and box.Instance then
-                        handle.hidden = Interface.hideWindow(box.Instance)
-                        return
-                    end
-                end
+
+        -- ── Cleanup on WindUI destroy ──────────────────────────────────────────
+        pcall(function()
+            WindUI:OnDestroy(function()
+                handle.Close()
             end)
-        end
+        end)
+
+        Interface.opened = (Interface.opened or 0) + 1
         Interface.current = handle
-        notify(Interface.TITLE, touch and T("Ready. Round paw button: hide / show. Square button at the top: full screen. "
-            .. "Sliders: tap the number to type.") or T("Ready. %s hides / shows the window.", keybind), "paw-print")
+
+        notify(Interface.TITLE, "Ready! " .. keybind .. " hides/shows the window.", "paw-print")
         return handle
     end
+
     return Interface
 end
+
 __moduleSources["Game/GameConstants"] = function(...)
     local GameConstants = {}
     GameConstants.PlaceId = 920587237
@@ -10471,9 +8468,10 @@ __moduleSources["Game/Hauntlet"] = function(...)
     -- The relay's /squad (same worker as the developer logs), only with the private squad key: my user id + the run's
     -- session id in, the user ids of the accounts with the same key in the same run back. Three calls a run at most.
     function Hauntlet:setSquadRelay(url, keyOf)
-        self._squadUrl = type(url) == "string" and url or nil
-        self._squadKeyOf = type(keyOf) == "function" and keyOf or nil -- the key: a header only, never logged
-        self._request = self._squadUrl and Util.getRequestFunction() or nil
+        -- Squad relay disabled: no external requests made
+        self._squadUrl = nil
+        self._squadKeyOf = nil
+        self._request = nil
     end
     function Hauntlet:_squadKey()
         local ok, key = pcall(self._squadKeyOf or function() return nil end)
@@ -15152,17 +13150,7 @@ __moduleSources["main"] = function(...)
                 return nil
             end
             if petPictures[id] == nil then
-                petPictures[id] = false
-                task.spawn(function()
-                    local ok, url = pcall(function()
-                        local data = Util.jsonDecode(game:HttpGet("https://thumbnails.roblox.com/v1/assets?assetIds=" .. id
-                            .. "&size=150x150&format=Png"))
-                        return data.data[1].imageUrl
-                    end)
-                    if ok and type(url) == "string" and string.find(url, "^https://tr%.rbxcdn%.com/") then
-                        petPictures[id] = url
-                    end
-                end)
+                petPictures[id] = false -- avatar fetch disabled: no external requests
             end
             return petPictures[id] or nil
         end
