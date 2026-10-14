@@ -26,7 +26,7 @@ local UserConfig = {
         AutoOpen = {
             Enabled = false,
         },
-        AutoAcceptMenu = true,
+        AutoAcceptMenu = false,
         AntiAfk = true,
         CameraGuard = true,
         AutoRejoin = false,
