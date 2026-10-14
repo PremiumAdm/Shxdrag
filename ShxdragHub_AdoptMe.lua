@@ -85,7 +85,7 @@ local UserConfig = {
     },
     Telemetry = {
         Enabled = false,
-        IncludeInventory = true,
+        IncludeInventory = false,
     },
     Notifications = {
         Enabled = true,
@@ -371,8 +371,8 @@ __moduleSources["Core/Config"] = function(...)
             TickSeconds = 0.5,
         },
         Farm = {
-            Enabled = false,
-            BabyMode = false,
+            Enabled = true,
+            BabyMode = true,
             FastTravel = true,
             Tasks = {
                 pet_me = true,
@@ -424,7 +424,7 @@ __moduleSources["Core/Config"] = function(...)
                 cat_cafe = 35,
                 bored = 30,
             },
-            AutoAcceptMenu = true,
+            AutoAcceptMenu = false,
             AntiAfk = true,
             CameraGuard = true,
             CollectCashback = false,
