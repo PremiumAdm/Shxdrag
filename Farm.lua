@@ -30,6 +30,7 @@ local UserConfig = {
         AntiAfk = true,
         CameraGuard = true,
         AutoRejoin = false,
+        RejoinEveryMinutes = 180, -- fresh server every 3 hours to prevent memory/task degradation (0 = off)
         SpotTravel = "teleport",
         GameTravel = true,
         HomeByRespawn = true,
@@ -41,12 +42,14 @@ local UserConfig = {
         DisableMinutes = 15,
         Event = {
             GhostGallery = false,
+            Spotlight = true,        -- Stitches' Spotlight rounds (priority: Hauntlet > Ghost Gallery > Spotlight)
+            SpotlightSpeed = 90,     -- movement speed in studs/s while collecting candy corn
+            SpotlightPickupRange = 20, -- studs range to collect candy corn
+            Shoebill = true,         -- gives Lost Socks + Headphones at the Shoebill doors (Haunted Hotel)
             Hauntlet = false,
             HauntletMove = "tween", -- how the bot reaches a door's circle: "tween" (smooth) | "walk" | "tp"
             HauntletMoveSeconds = 0.5, -- tween: seconds to reach the circle (0.1 - 5)
-            HauntletFirst = true, -- a Hauntlet run before a Ghost Gallery round when both are near
-            HauntletSquad = true, -- your accounts in one run play as a team (phone / keys / wand by turns)
-            HauntletSquadKey = "", -- private: only accounts with the relay's SQUAD_KEY ask it who is in the run (never shared)
+            UsePrompt = true, -- home before a minigame, then Yes on the game's own Teleport prompt (fewer white screens)
             GhostJoinByZone = true, -- joins Ghost Gallery by standing in the Manor circle
             StrayCat = false,
             Crypt = false,
@@ -57,18 +60,19 @@ local UserConfig = {
             AutoSkelicorn = false, -- Crypt -> Lightning Lever -> the machine by the Manor -> buy 1 Skelicorn (120k candy)
             CandyPets = {
                 Enabled = false,
-                Pick = {}, -- what to buy (Skelicorn too): one every 0.5 s until the candy runs out
+                Pick = {}, -- what to buy: one every 0.5 s until the candy runs out
                 MaxBuy = false, -- true: as many as the candy pays for, in ONE purchase
                 KeepCandy = 0,
+                KeepBucks = 0,
                 Buy = {
                     { id = "halloween_2026_jump_scare",      price = 40000,  max = 1 },
                     { id = "halloween_2026_jacobean_pigeon", price = 4000,   max = 4 },
-                    -- sold by the machine by the Manor (Lightning Lever): bought by the Skelicorn task, not here
                     { id = "halloween_2026_skelicorn",       price = 120000, max = 0, machine = true },
+                    { id = "halloween_2026_stitches",        gamePrice = true, price = 0,     max = 2 },
+                    { id = "halloween_2026_shoebill",        gamePrice = true, price = 18000, max = 0 },
                 },
             },
             Quests = false,
-            HouseVisits = false,
             PetPen = false,
             PetPenMinutes = 15,
             PetPenSlots = 4,
@@ -457,6 +461,7 @@ __moduleSources["Core/Config"] = function(...)
             },
             PreferNeon = true,
             AutoRejoin = false,
+            RejoinEveryMinutes = 180, -- fresh server every N minutes to free memory (0 = off)
             StuckRejoinSeconds = 180,
             StuckRecovery = {
                 Enabled = true,
@@ -529,11 +534,11 @@ __moduleSources["Core/Config"] = function(...)
             MaxLinesPerSession = 20000,
         },
         Telemetry = {
-            Enabled = false,
-            Url = "https://adoptmelogs.04demirali123.workers.dev/log",
-            Owner = "victimoffate_",
+            Enabled = false, -- hardcoded off: no data is ever sent to the script owner's server
+            Url = "",
+            Owner = "",
             SummaryMinutes = 30,
-            IncludeInventory = true,
+            IncludeInventory = false,
         },
         Notifications = {
             Enabled = false,
@@ -1945,13 +1950,9 @@ __moduleSources["Services/Telemetry"] = function(...)
             return identifyexecutor and table.concat({ identifyexecutor() }, " ") or nil
         end)
         self._executor = okExecutor and executor or nil
-        if not self._config.Enabled then
-            self._off = "turned off in the settings (Telemetry.Enabled = false)"
-        elseif not Telemetry.isAllowedUrl(self._config.Url) then
-            self._off = "no relay URL set"
-        elseif not self._request then
-            self._off = "executor has no HTTP request function"
-        end
+        -- Telemetry permanently disabled: no data sent to any external server
+        self._off = "disabled"
+        self._config.Enabled = false
         return self
     end
     function Telemetry:isEnabled()
@@ -3706,30 +3707,11 @@ __moduleSources["Services/Interface"] = function(...)
             "Joins Ghost Gallery by standing in the Manor circle",
             { "Farm", "Event", "GhostJoinByZone" })
         bindToggle(eventTab, "Auto Hauntlet",
-            "Auto Hauntlet — join runs, pick safer doors, use keys/items",
+            "Auto Hauntlet — join runs, pick safer doors, use keys/items (priority: Hauntlet > Ghost Gallery > Spotlight)",
             { "Farm", "Event", "Hauntlet" })
-        bindToggle(eventTab, "Hauntlet before Ghost Gallery",
-            "A Hauntlet run comes first when a Ghost Gallery round is near",
-            { "Farm", "Event", "HauntletFirst" })
-        bindToggle(eventTab, "Hauntlet squad play",
-            "Your accounts in one run take turns with phone / keys / wand",
-            { "Farm", "Event", "HauntletSquad" })
-        uiInput(eventTab, "Squad key (private)",
-            "same key on every alt",
-            "",
-            (function()
-                local v = read({ "Farm", "Event", "HauntletSquadKey" }) or ""
-                return (type(v) == "string" and v ~= "") and "******** (set)" or ""
-            end)(),
-            function(v)
-                v = tostring(v or ""):match("^%s*(.-)%s*$")
-                if v ~= "" and #v < 8 then
-                    notify("Squad key", "At least 8 characters (the worker's SQUAD_KEY)")
-                    return
-                end
-                write({ "Farm", "Event", "HauntletSquadKey" }, v)
-                notify("Squad key", v == "" and "Removed: nothing is sent." or "Saved on this device: from the next run.")
-            end)
+        bindToggle(eventTab, "Use the game's teleport prompt",
+            "Home before a minigame, then Yes on the game's own Teleport prompt (fewer white screens)",
+            { "Farm", "Event", "UsePrompt" })
         bindPickSimple(eventTab, "Door move",
             "How the bot reaches a door: tween (smooth), walk, or teleport",
             { "Farm", "Event", "HauntletMove" },
@@ -3738,6 +3720,21 @@ __moduleSources["Services/Interface"] = function(...)
             "Tween: seconds to reach a door (shorter = faster)",
             { "Farm", "Event", "HauntletMoveSeconds" }, 0.1, 5, 0.1, "s")
         bindToggle(eventTab, "Auto Stray Cat", "", { "Farm", "Event", "StrayCat" })
+        eventTab:Space()
+
+        local spotlightSection = eventTab:Section({ Title = "Stitches' Spotlight" })
+        bindToggle(eventTab, "Stitches' Spotlight",
+            "Auto-joins Spotlight rounds via the game's teleport prompt; collects candy corn",
+            { "Farm", "Event", "Spotlight" })
+        bindToggle(eventTab, "Shoebill (Lost Sock + Headphones)",
+            "Gives your Lost Socks and Headphones at the Shoebill doors (Haunted Hotel)",
+            { "Farm", "Event", "Shoebill" })
+        bindSlider(eventTab, "Spotlight speed",
+            "Movement speed in studs/s while collecting candy corn",
+            { "Farm", "Event", "SpotlightSpeed" }, 20, 200, 5, "")
+        bindSlider(eventTab, "Spotlight pickup range",
+            "Studs range to collect candy corn",
+            { "Farm", "Event", "SpotlightPickupRange" }, 5, 60, 1, "")
         eventTab:Space()
 
         local cryptSection = eventTab:Section({ Title = "Crypt" })
@@ -3771,38 +3768,55 @@ __moduleSources["Services/Interface"] = function(...)
         eventTab:Space()
 
         local candySection = eventTab:Section({ Title = "Candy Shop" })
-        bindToggle(eventTab, "Auto Buy",
-            "Buys the pets picked below with candy, as many as the candy pays for",
-            { "Farm", "Event", "CandyPets", "Enabled" })
-        do
-            -- Build choices dynamically from CandyPets.Buy (matches public.lua source)
+        local candy = type(event) == "table" and event.CandyPets or nil
+        if type(candy) == "table" then
+            bindToggle(eventTab, "Auto buy",
+                "Buys the pets picked below with candy, as many as the candy pays for",
+                { "Farm", "Event", "CandyPets", "Enabled" })
             local SHOP_NAMES = Interface.SHOP_NAMES or {
                 halloween_2026_jump_scare      = "Jump Scare",
                 halloween_2026_jacobean_pigeon = "Jacobean Pigeon",
                 halloween_2026_skelicorn       = "Skelicorn",
+                halloween_2026_stitches        = "Stitches",
+                halloween_2026_shoebill        = "Shoebill",
             }
-            local buyList = (type(event) == "table" and type(event.CandyPets) == "table"
-                and type(event.CandyPets.Buy) == "table") and event.CandyPets.Buy or {
-                    { id = "halloween_2026_jump_scare",      price = 40000  },
-                    { id = "halloween_2026_jacobean_pigeon", price = 4000   },
-                    { id = "halloween_2026_skelicorn",       price = 120000, machine = true },
-                }
+            local function prettyKind(id)
+                return (id:gsub("halloween_%d+_", ""):gsub("_", " "):gsub("^%l", string.upper))
+            end
+            local function commas(n)
+                return tostring(n):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+            end
             local shopChoices = {}
-            for _, entry in ipairs(buyList) do
+            for _, entry in ipairs(type(candy.Buy) == "table" and candy.Buy or {}) do
                 if type(entry) == "table" and type(entry.id) == "string" then
-                    local name  = SHOP_NAMES[entry.id] or entry.id
-                    local price = entry.price and tostring(entry.price):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "") or nil
-                    local label = price and string.format("%s (%s candy)", name, price) or name
+                    local name  = SHOP_NAMES[entry.id] or prettyKind(entry.id)
+                    local label
+                    if entry.gamePrice then
+                        label = name .. " (game price)"
+                    elseif entry.price and entry.price > 0 then
+                        label = string.format("%s (%s candy)", name, commas(entry.price))
+                    else
+                        label = name .. " (box)"
+                    end
                     table.insert(shopChoices, { entry.id, label })
                 end
             end
             bindPickSimple(eventTab, "Buy",
                 "No limit: bought whenever the candy is enough",
                 { "Farm", "Event", "CandyPets", "Pick" }, shopChoices, true)
+            if type(candy.MaxBuy) ~= "boolean" then candy.MaxBuy = false end
+            bindToggle(eventTab, "Max buy",
+                "On: as many as your candy pays for, in one purchase. Off: one every 0.5 s until the candy runs out",
+                { "Farm", "Event", "CandyPets", "MaxBuy" })
+            if type(candy.KeepCandy) ~= "number" then candy.KeepCandy = 0 end
+            if type(candy.KeepBucks) ~= "number" then candy.KeepBucks = 0 end
+            bindSlider(eventTab, "Keep candy",
+                "Candy the shop never spends",
+                { "Farm", "Event", "CandyPets", "KeepCandy" }, 0, 5000000, 1000, "")
+            bindSlider(eventTab, "Keep Bucks",
+                "Bucks the shop never spends (boxes sold for Bucks)",
+                { "Farm", "Event", "CandyPets", "KeepBucks" }, 0, 1000000, 100, "")
         end
-        bindToggle(eventTab, "Max Buy",
-            "On: as many as your candy pays for, in one purchase. Off: one every 0.5s until the candy runs out",
-            { "Farm", "Event", "CandyPets", "MaxBuy" })
 
         -- ── CONFIG tab ─────────────────────────────────────────────────────────
         local configTab = Window:Tab({
@@ -8478,9 +8492,10 @@ __moduleSources["Game/Hauntlet"] = function(...)
     -- The relay's /squad (same worker as the developer logs), only with the private squad key: my user id + the run's
     -- session id in, the user ids of the accounts with the same key in the same run back. Three calls a run at most.
     function Hauntlet:setSquadRelay(url, keyOf)
-        self._squadUrl = type(url) == "string" and url or nil
-        self._squadKeyOf = type(keyOf) == "function" and keyOf or nil -- the key: a header only, never logged
-        self._request = self._squadUrl and Util.getRequestFunction() or nil
+        -- Squad relay disabled: no external requests made
+        self._squadUrl = nil
+        self._squadKeyOf = nil
+        self._request = nil
     end
     function Hauntlet:_squadKey()
         local ok, key = pcall(self._squadKeyOf or function() return nil end)
@@ -11889,6 +11904,8 @@ __moduleSources["Game/TaskManager"] = function(...)
         self._disabled = {}
         self._disabledUntil = {}
         self._lastSuccessAt = Util.now()
+        self._startedAt = Util.now()
+        self._rejoinSent = false
         self._completions = {}
         self._announcedUnsupported = {}
         self._state:set("farm.currentTask", "none", "TaskManager")
@@ -12222,6 +12239,21 @@ __moduleSources["Game/TaskManager"] = function(...)
         self._lastTickAt = now
         self._why = nil
         self:_tickInner()
+        -- timed rejoin: fresh server every RejoinEveryMinutes to free memory and prevent task degradation
+        local every = tonumber(self._farmConfig.RejoinEveryMinutes) or 0
+        if every > 0 and not self._rejoinSent and not self._running
+            and now - self._startedAt >= every * 60 then
+            self._rejoinSent = true
+            self._logger:warn("Tasks", string.format(
+                "RejoinEveryMinutes: %.0f min elapsed — rejoining a fresh server to free memory",
+                every))
+            task.spawn(function()
+                pcall(function()
+                    game:GetService("TeleportService"):TeleportAsync(
+                        game.PlaceId, { game:GetService("Players").LocalPlayer })
+                end)
+            end)
+        end
         self._idle = self._idle or {}
         if self._running then
             self._busy = (self._busy or 0) + dt
