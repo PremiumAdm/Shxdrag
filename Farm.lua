@@ -475,36 +475,42 @@ __moduleSources["Core/Config"] = function(...)
             Event = {
                 Enabled = true,
                 GhostGallery = false,
+                Spotlight = true,
+                SpotlightSpeed = 90,
+                SpotlightPickupRange = 20,
+                Shoebill = true,
                 Hauntlet = false,
-                HauntletMove = "tween", -- "tween" (smooth, default) | "walk" | "tp": how the bot reaches a door's circle
-                HauntletMoveSeconds = 0.5, -- tween: seconds to reach the circle (0.1 - 5; the room's time is ~25 s)
-                HauntletFirst = true, -- a Hauntlet run comes before a Ghost Gallery round when both are near
-                HauntletSquad = true, -- several of your accounts in one run: shared items (phone, keys, wand) by turns
-                HauntletSquadKey = "", -- private squad key (= the worker's SQUAD_KEY secret): empty = nothing is sent
+                HauntletMove = "tween",
+                HauntletMoveSeconds = 0.5,
+                UsePrompt = true,
                 GhostJoinByZone = true,
+                StrayCat = false,
                 Crypt = false,
                 MummySpider = true,
                 CryptOpen = { "ladder" },
-                Quests = false,
-                HouseVisits = false,
                 PigeonNest = false,
                 AutoNest = false,
-                AutoSkelicorn = false, -- Crypt (Lightning Lever) -> machine by the Manor -> 1 Skelicorn for 120000 candy
-                StrayCat = false,
+                AutoSkelicorn = false,
+                Quests = false,
                 PetPen = false,
                 PetPenMinutes = 15,
-                CandyPets = {
-                    Enabled = false,
-                    Pick = {},
-                    KeepCandy = 0,
-                    Buy = {
-                        { id = "halloween_2026_jump_scare", price = 40000, max = 1 },
-                        { id = "halloween_2026_jacobean_pigeon", price = 4000, max = 4 },
-                    },
-                },
                 PetPenSlots = 4,
                 PetPenStock = false,
                 PetPenStockMinBucks = 750,
+                CandyPets = {
+                    Enabled = false,
+                    Pick = {},
+                    MaxBuy = false,
+                    KeepCandy = 0,
+                    KeepBucks = 0,
+                    Buy = {
+                        { id = "halloween_2026_jump_scare",      price = 40000,  max = 1 },
+                        { id = "halloween_2026_jacobean_pigeon", price = 4000,   max = 4 },
+                        { id = "halloween_2026_skelicorn",       price = 120000, max = 0, machine = true },
+                        { id = "halloween_2026_stitches",        gamePrice = true, price = 0,     max = 2 },
+                        { id = "halloween_2026_shoebill",        gamePrice = true, price = 18000, max = 0 },
+                    },
+                },
             },
             PetMeFocusSeconds = 7,
             FailureCooldownSeconds = 30,
