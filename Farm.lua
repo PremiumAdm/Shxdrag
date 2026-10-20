@@ -50,7 +50,7 @@ local UserConfig = {
             HauntletMove = "tween", -- how the bot reaches a door's circle: "tween" (smooth) | "walk" | "tp"
             HauntletMoveSeconds = 0.5, -- tween: seconds to reach the circle (0.1 - 5)
             UsePrompt = true, -- home before a minigame, then Yes on the game's own Teleport prompt (fewer white screens)
-            GhostJoinByZone = true, -- joins Ghost Gallery by standing in the Manor circle
+
             StrayCat = false,
             Crypt = false,
             MummySpider = true, -- bottom of the Crypt: takes the Mummy Spider
@@ -483,7 +483,6 @@ __moduleSources["Core/Config"] = function(...)
                 HauntletMove = "tween",
                 HauntletMoveSeconds = 0.5,
                 UsePrompt = true,
-                GhostJoinByZone = true,
                 StrayCat = false,
                 Crypt = false,
                 MummySpider = true,
@@ -3709,9 +3708,7 @@ __moduleSources["Services/Interface"] = function(...)
         bindToggle(eventTab, "Ghost Gallery",
             "Joins every round and vacuums the ghosts (Rusty Keys)",
             { "Farm", "Event", "GhostGallery" })
-        bindToggle(eventTab, "Join by Zone",
-            "Joins Ghost Gallery by standing in the Manor circle",
-            { "Farm", "Event", "GhostJoinByZone" })
+
         bindToggle(eventTab, "Auto Hauntlet",
             "Auto Hauntlet — join runs, pick safer doors, use keys/items (priority: Hauntlet > Ghost Gallery > Spotlight)",
             { "Farm", "Event", "Hauntlet" })
@@ -10666,22 +10663,79 @@ __moduleSources["Game/EventTasks"] = function(...)
             end
             local candyBefore = tonumber(ctx.gameData:get(KEYS.Candy))
             local keysBefore = #ctx.gameData:itemsOfId(TOYS, E.RustyKey)
-            local arrived, why = ctx.travel:goTo("HauntedManor")
-            if not arrived then
-                return false, "travel to the Manor failed: " .. tostring(why)
-            end
+            -- v2.1.20: the last round's state is cleared BEFORE the trip (the game's prompt puts me in the join circle
+            -- and can queue me while the farm is still on its way: that join used to be thrown away by a reset after it)
             mg:reset()
-            local byZone = not (ctx.farmConfig.Event and ctx.farmConfig.Event.GhostJoinByZone == false)
+            local queueSince = Util.now()
+            EventTasks.inQueueByHint("ghost", queueSince) -- starts watching the game's hint
+            local function queued()
+                return mg.joinAcceptedAt ~= nil or mg.join ~= nil or EventTasks.inQueueByHint("ghost", queueSince)
+            end
+            local okPrompt, byPrompt = pcall(EventTasks.viaPrompt, ctx, "ghost", "HauntedManor", tonumber(start), queued)
+            byPrompt = okPrompt and byPrompt == true
+            -- v2.1.29 (hauntlet_debug: the run took me on the server, the device stayed in the lobby): the game's own
+            -- teleport brought me = no trip / "draw again" of mine on top of it (it can break the game's next move)
+            if not queued() and not byPrompt then
+                phase(ctx, "going to the Manor", tonumber(start))
+                local arrived, why = ctx.travel:goTo("HauntedManor")
+                if not arrived and not queued() then
+                    return false, "travel to the Manor failed: " .. tostring(why)
+                end
+            end
+            local byZone = true -- always join by standing in the Manor circle (GhostJoinByZone removed from UI)
             local inZone = false
-            if byZone then
+            if byZone and not queued() then
                 local zoneWhy
                 inZone, zoneWhy = ctx.interaction:teleportToJoinZone()
+                if not inZone and not queued() then
+                    -- v2.1.21: no floor at the circle = the Manor is not drawn on this device: its way in, then again
+                    ctx.logger:info("Event", "Ghost Gallery: join circle not reached (" .. tostring(zoneWhy)
+                        .. "): loading the Manor again")
+                    if ctx.travel:redraw("HauntedManor") and not queued() then
+                        inZone, zoneWhy = ctx.interaction:teleportToJoinZone()
+                    end
+                end
                 ctx.logger:info("Event", "Ghost Gallery: standing in the join circle" .. (inZone and "" or (" failed (" .. tostring(zoneWhy) .. ")")))
             end
-            ctx.waitUntil(function()
-                return Minigame.serverNow() >= start - 3
-            end, math.max(0, start - Minigame.serverNow()) + 5)
-            if byZone then
+            phase(ctx, "in the join circle: the game queues me when the round starts", tonumber(start))
+            -- v2.1.21 (user report: "at the Ghost Gallery circle I fall through the floor, stay under the map and the
+            -- script waits for nothing"): until 3 s before the start, checked every second: fell through the floor or
+            -- pushed out of the circle -> back in (5 s apart at most; not reached yet: tried again every 10 s). Never
+            -- while the game holds or moves me itself (anchored, 150+ studs away).
+            local standAt = inZone and myRoot() and myRoot().Position or nil
+            local function outOfCircle()
+                local root = myRoot()
+                if not (byZone and root and standAt) or root.Anchored then
+                    return false, false
+                end
+                local p = root.Position
+                local aside = Vector3.new(p.X - standAt.X, 0, p.Z - standAt.Z).Magnitude
+                local fell = p.Y < standAt.Y - 8
+                return (aside > 10 or fell) and aside < 150, fell
+            end
+            local waitEndAt = Util.now() + math.max(0, start - Minigame.serverNow()) + 5
+            local nextBack, backLogAt = Util.now() + (inZone and 1 or 10), -math.huge
+            while not queued() and Minigame.serverNow() < start - 3 and Util.now() < waitEndAt do
+                local out, fell = outOfCircle()
+                if byZone and (out or not standAt) and Util.now() >= nextBack then
+                    if Util.now() - backLogAt >= 30 then
+                        backLogAt = Util.now()
+                        ctx.logger:info("Event", "Ghost Gallery: " .. (not standAt and "trying the join circle again"
+                            or ((fell and "fell through the floor" or "pushed out of the join circle") .. ": back into it")))
+                    end
+                    local moved = ctx.interaction:teleportToJoinZone()
+                    if moved then
+                        inZone = true
+                        standAt = myRoot() and myRoot().Position or standAt
+                    end
+                    nextBack = Util.now() + (moved and 5 or 10)
+                end
+                ctx.waitUntil(function()
+                    return queued() or Minigame.serverNow() >= start - 3
+                end, 1)
+            end
+            -- (was: always teleported again at T-3; now only when I am not standing in the circle)
+            if byZone and not queued() and (not inZone or (outOfCircle())) then
                 inZone = ctx.interaction:teleportToJoinZone()
             end
             ctx.logger:info("Event", "Ghost Gallery: joining the round" .. (inZone and " (join circle)" or ""))
@@ -10694,6 +10748,15 @@ __moduleSources["Game/EventTasks"] = function(...)
                 else
                     ctx.logger:info("Event", "Ghost Gallery: the circle did not queue me in 20 s: joining by call")
                 end
+            end
+            -- v3.0.72 (report: the game's "in the queue" hint 38 s before the round, 30 s of joins, "join was not
+            -- accepted" 6 s before the start; the game took me into the round at the start and I stood still): queued by
+            -- the game's hint = its own join at the start is waited for first (until 15 s after the start)
+            if not mg.joinAcceptedAt and not mg.join and EventTasks.inQueueByHint("ghost", queueSince) then
+                phase(ctx, "in the game's queue: waiting for the round", tonumber(start))
+                ctx.waitUntil(function()
+                    return mg.joinAcceptedAt ~= nil or mg.join ~= nil
+                end, math.max(0, tonumber(start) - Minigame.serverNow()) + 15)
             end
             local joinUntil = Util.now() + 30
             while not mg.joinAcceptedAt and not mg.join and Util.now() < joinUntil do
@@ -10732,6 +10795,7 @@ __moduleSources["Game/EventTasks"] = function(...)
                 ctx.waitUntil(function()
                     return not inRound()
                 end, 15)
+                phase(ctx, "round over: going home")
                 local home, homeWhy = ctx.travel:goTo(GameConstants.HouseInteriorName)
                 if not home then
                     ctx.logger:info("Event", "Ghost Gallery: going home after the round did not work (" .. tostring(homeWhy) .. ")")
@@ -11488,7 +11552,7 @@ __moduleSources["Game/EventTasks"] = function(...)
             local p = ctx.interaction.promptTeleport
             return p ~= nil and p.kind == kind and Util.now() - p.at < 60
         end
-        if not prompted() and not ctx.travel:isAt(GameConstants.HouseInteriorName) then
+        if kind ~= "spotlight" and not prompted() and not ctx.travel:isAt(GameConstants.HouseInteriorName) then
             ctx.logger:info("Event", kind .. ": home first, then the game's own teleport prompt")
             phase(ctx, "going home first (the game's teleport prompt comes there)", startAt)
             pcall(function()
@@ -12459,15 +12523,21 @@ __moduleSources["Game/TaskManager"] = function(...)
     local TaskManager = {}
     TaskManager.__index = TaskManager
     local TEAM_KEY = "team"
-    local EVENT_RECHECK_SECONDS = { ghost_gallery = 120, stray_cat = 1800, crypt = 60, pigeon_nest = 60, quests = 300, pen_stock = 20, age_potion = 5, open_gift = 3, neon_fusion = 2, mega_fusion = 2, candy_pet = 30, house_visits = 300, hauntlet = 90, skelicorn = 120 }
+    local EVENT_RECHECK_SECONDS = { ghost_gallery = 120, stray_cat = 1800, crypt = 60, pigeon_nest = 60, quests = 300, pen_stock = 20, age_potion = 5, open_gift = 3, neon_fusion = 2, mega_fusion = 2, candy_pet = 30, shop_gift = 30, house_visits = 300, hauntlet = 90, skelicorn = 120, spotlight = 120, shoebill = 300 }
     local GHOST_GALLERY_LEAD_SECONDS = 75
-    local GHOST_INTERRUPT_SECONDS = 50
-    local HAUNTLET_LEAD_SECONDS = 45
+    local GHOST_INTERRUPT_SECONDS = 72
+    local HAUNTLET_LEAD_SECONDS = 75 -- v2.1.9: home first, then the game's prompt at T-45
     local HAUNTLET_GHOST_GAP_SECONDS = 420
-    local HAUNTLET_INTERRUPT_SECONDS = 42 -- Farm.Event.HauntletFirst: a normal task stops this long before a run
+    local HAUNTLET_INTERRUPT_SECONDS = 72 -- Farm.Event.HauntletFirst: a normal task stops this long before a run
     local GHOST_ROUND_BUSY_SECONDS = 270 -- a Ghost Gallery round with travel ("Done: Ghost Gallery round in 244 s")
     local NO_FURNITURE_SKIP_SECONDS = 600
-    local NEVER_INTERRUPT = { ghost_gallery = true, hauntlet = true, recover = true, team = true, neon_fusion = true, mega_fusion = true }
+    local NEVER_INTERRUPT = { ghost_gallery = true, hauntlet = true, recover = true, team = true, neon_fusion = true, mega_fusion = true,
+        spotlight = true }
+    -- v2.1.14 (user: "while Hauntlet / Ghost Gallery run, stop every other task: 30 s before a minigame starts, again
+    -- 20 s after it ended"): the minigame window
+    local MINIGAME_TASKS = { hauntlet = true, ghost_gallery = true, spotlight = true }
+    local MINIGAME_STOP_BEFORE_SECONDS = 30
+    local MINIGAME_RESUME_AFTER_SECONDS = 5 -- v3.0.70 (reports: "waiting: minigame ended ... resume after 20 s" every round; v3.0.44 used 5)
     local NEVER_SKIP = { neon_fusion = true, mega_fusion = true, team = true }
     local SKIP_REST_SECONDS = 90
     local HERE_BONUS = 12
@@ -12988,25 +13058,53 @@ __moduleSources["Game/TaskManager"] = function(...)
             return
         end
         if self._running then
+            local hRun = self._hauntlet
+            local runEndedAt = hRun and ((hRun.leave and hRun.leave.at) or hRun.kickedAt)
             if Util.now() > self._running.deadline then
                 self:_finish("TIMEOUT", "no result within " .. math.floor(self._running.deadline - self._running.startedAt) .. " s")
+            elseif self._running.key == "hauntlet" and runEndedAt and runEndedAt >= self._running.startedAt
+                and Util.now() - runEndedAt > 90 then
+                self._logger:warn("Hauntlet", "The run ended " .. math.floor(Util.now() - runEndedAt)
+                    .. " s ago but the run task is stuck: stopping it")
+                self:_finish("TIMEOUT", "stuck after the run ended")
+            elseif self._running.key ~= "spotlight" and self:_spotlightStart(HAUNTLET_INTERRUPT_SECONDS)
+                and not NEVER_INTERRUPT[self._running.key] then
+                -- v3.0.38: a Hauntlet / Ghost Gallery task is never stopped for a Spotlight round any more
+                -- v3.0.22: the Spotlight runs at this time; a Hauntlet / Ghost Gallery task that has not joined anything yet stops too
+                self._logger:info("Spotlight", "Priority interrupt: stopping " .. self._running.label .. " for the Stitches' Spotlight round")
+                self:_finish("INTERRUPTED", "Stitches' Spotlight round")
+                self:_finish("INTERRUPTED", "Stitches' Spotlight round", "_side")
+                self:_stopQuickHands("Stitches' Spotlight round")
+                local key, label, taskDef, group = self:_selectEventJob()
+                if key == "spotlight" then
+                    self:_start(key, label, taskDef, group, true)
+                end
             elseif not NEVER_INTERRUPT[self._running.key] and self:_hauntletFirst()
                 and self:_hauntletRoundDue(HAUNTLET_INTERRUPT_SECONDS) then
                 self._logger:info("Hauntlet", "Priority interrupt: stopping " .. self._running.label .. " for the Hauntlet run")
                 self:_finish("INTERRUPTED", "Hauntlet run")
                 self:_finish("INTERRUPTED", "Hauntlet run", "_side")
+                self:_stopQuickHands("Hauntlet run")
+                self._petHoldUntil = Util.now() + 10
+                local key, label, taskDef, group = self:_selectEventJob()
+                if key == "hauntlet" then
+                    self:_start(key, label, taskDef, group, true)
+                end
             elseif not NEVER_INTERRUPT[self._running.key] and self:_ghostRoundDue(GHOST_INTERRUPT_SECONDS)
                 and not (self:_hauntletFirst() and self:_hauntletRoundDue(GHOST_INTERRUPT_SECONDS + GHOST_ROUND_BUSY_SECONDS)) then
                 self._logger:info("Ghost", "Priority interrupt: stopping " .. self._running.label .. " for the Ghost Gallery round")
                 self:_finish("INTERRUPTED", "Ghost Gallery round")
                 self:_finish("INTERRUPTED", "Ghost Gallery round", "_side")
-            elseif not NEVER_INTERRUPT[self._running.key] and self._running.key ~= "spotlight"
-                and self:_spotlightStart(HAUNTLET_INTERRUPT_SECONDS) then
-                self._logger:info("Spotlight", "Priority interrupt: stopping " .. self._running.label .. " for Stitches' Spotlight round")
-                self:_finish("INTERRUPTED", "Stitches' Spotlight round")
-                self:_finish("INTERRUPTED", "Stitches' Spotlight round", "_side")
+                self:_stopQuickHands("Ghost Gallery round")
             else
-                self:_maybeStartSide()
+                -- v2.1.14: if a minigame room was entered (e.g. game's own prompt took us to Circus / Manor while
+                -- a needs task was running), stop it immediately so the minigame task can take over
+                local freeze = self:_minigameFreeze()
+                if freeze then
+                    self:_stopForMinigame(freeze)
+                else
+                    self:_maybeStartSide()
+                end
             end
             return
         end
@@ -13065,6 +13163,37 @@ __moduleSources["Game/TaskManager"] = function(...)
             self._logger:warn("Tasks", "2 trips in a row failed: recovering")
             self:_start("recover", "recover: go home", Tasks.recover, nil)
             return
+        end
+        if self:_spotlightStart(HAUNTLET_INTERRUPT_SECONDS) then -- v3.0.22: the Spotlight round starts in this tick
+            local key, label, taskDef, group = self:_selectEventJob()
+            if key == "spotlight" then
+                self:_stopQuickHands("Stitches' Spotlight round")
+                self:_start(key, label, taskDef, group, true)
+                return
+            end
+        end
+        -- v2.1.4 BUG A: the pet upkeep below ran before the event jobs, started "equip pet" again, the next tick
+        -- interrupted it again. Hauntlet due / pending -> it starts in THIS tick, nothing else is queued before it.
+        if self:_hauntletFirst() and (self:_hauntletRoundDue(HAUNTLET_INTERRUPT_SECONDS) or self:_hauntletPending()) then
+            local key, label, taskDef, group = self:_selectEventJob()
+            if key == "hauntlet" then
+                self:_stopQuickHands("Hauntlet run")
+                self:_start(key, label, taskDef, group, true)
+                return
+            end
+        end
+        do
+            local freeze = self:_minigameFreeze()
+            if freeze then
+                self:_stopForMinigame(freeze)
+                local key, label, taskDef, group = self:_selectEventJob()
+                if MINIGAME_TASKS[key] then
+                    self:_start(key, label, taskDef, group, true)
+                    return
+                end
+                self._why = "waiting: " .. freeze
+                return
+            end
         end
         if self._gameData and self._farmConfig.KeepPetEquipped then
             local current = self._gameData:firstEquippedPet()
@@ -13312,9 +13441,16 @@ __moduleSources["Game/TaskManager"] = function(...)
         end
         return nil
     end
+    function TaskManager:_hauntletPending()
+        local h = self._hauntlet
+        local event = self._farmConfig.Event
+        return type(event) == "table" and event.Hauntlet == true and h ~= nil and h.join ~= nil and not h.leave
+            and not h.kicked and Util.now() - (h.join.at or 0) < 90
+    end
     function TaskManager:_hauntletFirst()
         local event = self._farmConfig.Event
-        return type(event) == "table" and event.Enabled == true and event.Hauntlet == true and event.HauntletFirst ~= false
+        -- v2.1.12: a Hauntlet run always comes before a Ghost Gallery round (Farm.Event.HauntletFirst is not read)
+        return type(event) == "table" and event.Enabled == true and event.Hauntlet == true
             and self._hauntlet ~= nil and self._hauntlet.available == true
     end
     function TaskManager:_hauntletRoundDue(lead)
@@ -13335,6 +13471,80 @@ __moduleSources["Game/TaskManager"] = function(...)
             return start
         end
         return nil
+    end
+    function TaskManager:_stopQuickHands(reason)
+        if self._quick and self._quick.hands then
+            self:_finish("INTERRUPTED", reason, "_quick")
+        end
+    end
+    -- v2.1.14: why other tasks must not run now (nil = they may): a minigame task runs, its join is pending, one
+    -- starts within MINIGAME_STOP_BEFORE_SECONDS of its task's own start, or one ended less than
+    -- MINIGAME_RESUME_AFTER_SECONDS ago. Only the minigame tasks themselves start in this window.
+    function TaskManager:_minigameFreeze()
+        if self._running and MINIGAME_TASKS[self._running.key] then
+            return "a minigame is running (" .. self._running.label .. ")"
+        end
+        -- v2.1.28 (user screenshot: in a Ghost Gallery round, "doing: feed the Stray Cat"): I am in a minigame room
+        -- (the game's prompt or a manual join took me in, no minigame task of the farm) = nothing else runs either;
+        -- the 20 s after it count from when I left the room
+        local place = self._state:get("player.interior")
+        local E = GameConstants.Event
+        local inRoom = type(place) == "string" and (string.sub(place, 1, #E.MinigameInteriorPrefix) == E.MinigameInteriorPrefix
+            or string.sub(place, 1, #E.HauntletInteriorPrefix) == E.HauntletInteriorPrefix
+            or string.sub(place, 1, #E.SpotlightInteriorPrefix) == E.SpotlightInteriorPrefix)
+        if inRoom then
+            self._minigameTookPet = true
+            self._inMinigameRoom = true
+            return "in a minigame room (" .. place .. ")"
+        elseif self._inMinigameRoom then
+            self._inMinigameRoom = false
+            self._minigameEndedAt = Util.now()
+        end
+        local endedAgo = Util.now() - (self._minigameEndedAt or -math.huge)
+        if endedAgo < MINIGAME_RESUME_AFTER_SECONDS then
+            return string.format("minigame ended %d s ago (other tasks resume after %d s)", math.floor(endedAgo),
+                MINIGAME_RESUME_AFTER_SECONDS)
+        end
+        if self:_hauntletPending() then
+            return "Hauntlet join accepted"
+        end
+        local hauntFirst = self:_hauntletFirst()
+        if hauntFirst and self:_hauntletRoundDue(HAUNTLET_LEAD_SECONDS + MINIGAME_STOP_BEFORE_SECONDS) then
+            return "Hauntlet starts soon"
+        end
+        -- the same rule as _selectEventJob: a round that the Hauntlet will skip does not stop anything
+        if self:_ghostRoundDue(GHOST_GALLERY_LEAD_SECONDS + MINIGAME_STOP_BEFORE_SECONDS)
+            and not (hauntFirst and self:_hauntletRoundDue(GHOST_GALLERY_LEAD_SECONDS + GHOST_ROUND_BUSY_SECONDS)) then
+            return "Ghost Gallery starts soon"
+        end
+        return nil
+    end
+    function TaskManager:_stopForMinigame(reason)
+        if self._running and not MINIGAME_TASKS[self._running.key] and not NEVER_INTERRUPT[self._running.key] then
+            self._logger:info("Tasks", "Minigame window: stopping " .. self._running.label .. " (" .. reason .. ")")
+            self:_finish("INTERRUPTED", reason)
+        end
+        if self._side then
+            self:_finish("INTERRUPTED", reason, "_side")
+        end
+        if self._quick and not NEVER_INTERRUPT[self._quick.key] then
+            self:_finish("INTERRUPTED", reason, "_quick")
+        end
+    end
+    function TaskManager:_minigameSoon()
+        if self:_hauntletPending() then
+            return true
+        end
+        local event = self._farmConfig.Event
+        if type(event) ~= "table" then
+            return false
+        end
+        if event.Hauntlet == true and self._hauntlet and self._hauntlet.available
+            and self:_hauntletRoundDue(HAUNTLET_LEAD_SECONDS + 30) then
+            return true
+        end
+        return self:_ghostRoundDue(GHOST_GALLERY_LEAD_SECONDS + 30) ~= nil
+            or self:_spotlightStart(GHOST_GALLERY_LEAD_SECONDS + 30) ~= nil -- v3.0.22
     end
     function TaskManager:_autoNest()
         local event = self._farmConfig.Event
@@ -13367,6 +13577,22 @@ __moduleSources["Game/TaskManager"] = function(...)
         local character = game:GetService("Players").LocalPlayer.Character
         if team ~= "Parents" and team ~= GameConstants.BabiesTeam or not (character and character:FindFirstChild("HumanoidRootPart")) then
             return nil
+        end
+        do -- v3.0.22: a Spotlight round (timer or the game's prompt) before every other job
+            local spotStart, how = self:_spotlightStart(GHOST_GALLERY_LEAD_SECONDS)
+            if spotStart then
+                self._logger:info("Spotlight", "Stitches' Spotlight round (" .. tostring(how) .. ") in "
+                    .. math.floor(spotStart - Minigame.serverNow()) .. " s")
+                return "spotlight", "Stitches' Spotlight round", EventTasks.spotlight, { start = spotStart }
+            end
+        end
+        -- v2.1.4 BUG A: the quick jobs below (age potion, gift, neon fusion) came first and took the slot the Hauntlet
+        -- interrupt had just freed -> interrupt -> again. With HauntletFirst a due / pending run is picked first.
+        if self:_hauntletFirst() and self._hauntlet and self._hauntlet.available and not self:_isBlocked("hauntlet") then
+            local start = self:_hauntletRoundDue(HAUNTLET_LEAD_SECONDS)
+            if start or self:_hauntletPending() then
+                return "hauntlet", "Hauntlet run", EventTasks.hauntlet, start and { start = start } or nil
+            end
         end
         if self._penWanted then
             if data:get(GameConstants.DataKeys.PetPen) == nil then
@@ -13424,8 +13650,9 @@ __moduleSources["Game/TaskManager"] = function(...)
         -- Gallery: only 3-4 of my alts got into the run"): with Farm.Event.HauntletFirst (default on) a Hauntlet run
         -- comes first. A Ghost Gallery round takes ~4-5 min, so it is skipped when a Hauntlet starts before it would end.
         local h = self._hauntlet
+        local h = self._hauntlet
         local hauntOn = event.Hauntlet == true and h ~= nil and h.available and not self:_isBlocked("hauntlet")
-        local hauntFirst = hauntOn and event.HauntletFirst ~= false
+        local hauntFirst = hauntOn
         local hauntPending = hauntOn and h.join ~= nil and not h.leave and not h.kicked and Util.now() - h.join.at < 90
         if hauntFirst then
             local hauntStart = self:_hauntletRoundDue(HAUNTLET_LEAD_SECONDS)
@@ -13444,16 +13671,6 @@ __moduleSources["Game/TaskManager"] = function(...)
             local hauntStart = self:_hauntletRoundDue(HAUNTLET_LEAD_SECONDS)
             if hauntPending or (hauntStart and not (event.GhostGallery and self:_ghostRoundDue(HAUNTLET_GHOST_GAP_SECONDS))) then
                 return "hauntlet", "Hauntlet run", EventTasks.hauntlet, hauntStart and { start = hauntStart } or nil
-            end
-        end
-        -- v3.0.22: Stitches' Spotlight round (timer or game's prompt) before all other non-minigame jobs
-        do
-            local spotStart, how = self:_spotlightStart(GHOST_GALLERY_LEAD_SECONDS)
-            if spotStart then
-                self._logger:info("Spotlight", "Stitches' Spotlight round (" .. tostring(how) .. ") in "
-                    .. math.floor(spotStart - Minigame.serverNow()) .. " s")
-                self._spotlightStartedAt = Util.now()
-                return "spotlight", "Stitches' Spotlight round", EventTasks.spotlight, { start = spotStart }
             end
         end
         local nest = event.PigeonNest ~= false and self:_autoNest()
@@ -14314,6 +14531,9 @@ __moduleSources["main"] = function(...)
                                         local pattern, label = rule.button, rule.label
                                         local promptKind = nil
                                         if rule.prompt then
+                                            -- v3.0.21: walk up to the full ScreenGui so title labels above the
+                                            -- CheckboxDialog frame are also read (Spotlight title was outside
+                                            -- "Dialog" ancestor, so "ghost" from a nearby label won the match)
                                             local box = marker:FindFirstAncestor("Dialog") or marker.Parent or marker
                                             local seen = {}
                                             for _, d in ipairs(box:GetDescendants()) do
@@ -14328,7 +14548,7 @@ __moduleSources["main"] = function(...)
                                             local hasHaunt = string.find(all, "hauntlet", 1, true) ~= nil
                                             local hasGhost = string.find(all, "ghost", 1, true) ~= nil
                                                 or string.find(all, "gallery", 1, true) ~= nil
-                                            -- v3.0.21: "Stitches' Spotlight yakında başlıyor!" was read as Ghost Gallery
+                                            -- v3.0.21: "Stitches' Spotlight yakında başlıyor!" was read as a Ghost Gallery prompt
                                             local hasSpot = string.find(all, "spotlight", 1, true) ~= nil
                                                 or string.find(all, "stitches", 1, true) ~= nil
                                             local mixed = (hasHaunt and hasGhost) or (hasSpot and (hasHaunt or hasGhost))
