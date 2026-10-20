@@ -4112,6 +4112,7 @@ __moduleSources["Game/GameConstants"] = function(...)
         PigeonNest = "halloween_2026_jacobean_pigeon_nest_manager",
         LightningLever = "halloween_2026_lightning_lever_manager",
         GhostCycle = "ghost_clusters_cycle_timestamp",
+        SpotlightCycle = "spotlight_cycle_timestamp", -- v3.0.21: Stitches' Spotlight (same 10 min grid as Ghost Gallery)
         Dailies = "dailies_manager",
         Hauntlet = "halloween_2026_hauntlet_manager",
         HauntletCycle = "hauntlet_cycle_timestamp",
@@ -4155,6 +4156,8 @@ __moduleSources["Game/GameConstants"] = function(...)
         UnlockPadlock = { remote = "Halloween2026/UnlockPadlock", folder = "EventFolder", purpose = "Halloween: use YOUR Rusty Key on a Crypt grave (Farm.Event.Crypt)" },
         PigeonNestTwig = { remote = "Halloween2026/JacobeanPigeonNestContributeTwig", folder = "EventFolder", purpose = "Halloween: put YOUR Crypt Twig in the Hotel nest (Farm.Event.PigeonNest)" },
         MinigameJoin = { remote = "MinigameAPI/AttemptJoin", purpose = "Halloween: join the Ghost Gallery minigame (Farm.Event.GhostGallery)" },
+        SpotlightJoin = { remote = "MinigameAPI/AttemptJoin", purpose = "Halloween: join the Stitches' Spotlight minigame after the game's own prompt (Farm.Event.Spotlight)",
+            joinPrefix = "spotlight" },
         MinigameLeave = { remote = "MinigameAPI/AttemptJoin", purpose = "Ghost Gallery: leave a round I could not get into (the game's own exit call)",
             leaveOnly = true },
         MinigameMessage = { remote = "MinigameAPI/MessageServer", purpose = "Ghost Gallery: vacuum a ghost or a haunted prop (start / stop only)",
@@ -4407,6 +4410,12 @@ __moduleSources["Game/GameConstants"] = function(...)
         -- unlocked right after (DownloadsAPI/Download("Pets", "halloween_2026_skelicorn")). LightningLeverActivate was
         -- NOT fired in that install, so it is not recorded and never sent.
         SkelicornArgs = { deliver = {} },
+        -- v3.0.21 Stitches' Spotlight
+        SpotlightId = "spotlight",
+        SpotlightRoundSeconds = 1800, -- one Spotlight round every 30 min
+        SpotlightPromptLead = 33, -- the game's prompt comes 33 s before the join
+        SpotlightInteriorPrefix = "CircusMinigameInterior",
+        SpotlightSpawnersName = "CandycornSpawners",
     }
     GameConstants.FarmPotions = { "pet_age_potion", "tiny_pet_age_potion", "pet_bonus_bucks_potion" }
     function GameConstants.needOn(farm, kind)
@@ -8142,9 +8151,10 @@ __moduleSources["Game/Minigame"] = function(...)
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
     local Minigame = {}
     Minigame.__index = Minigame
-    function Minigame.new(logger)
+    function Minigame.new(logger, minigameId)
         local self = setmetatable({}, Minigame)
         self._logger = logger
+        self._id = minigameId -- v3.0.21: nil = Ghost Gallery (GameConstants.Event.MinigameId); "spotlight" = Stitches' Spotlight
         self:reset()
         return self
     end
@@ -8170,8 +8180,8 @@ __moduleSources["Game/Minigame"] = function(...)
         end
         return os.time()
     end
-    local function isMine(gameKey)
-        local id = GameConstants.Event.MinigameId
+    local function isMine(gameKey, id)
+        id = id or GameConstants.Event.MinigameId
         return type(gameKey) == "string" and (gameKey == id or string.sub(gameKey, 1, #id + 2) == id .. "::")
     end
     local KNOWN = {
@@ -8201,7 +8211,7 @@ __moduleSources["Game/Minigame"] = function(...)
         return tostring(value)
     end
     function Minigame:_onMessage(gameKey, message, a, b)
-        if not isMine(gameKey) then
+        if not isMine(gameKey, self._id) then
             return
         end
         if type(message) == "string" and not KNOWN[message] then
@@ -9947,15 +9957,20 @@ __moduleSources["Game/EventTasks"] = function(...)
         end
         return #parts > 0 and table.concat(parts, " | ") or "no Halloween / normal board"
     end
-    function EventTasks.nextRoundStart(cycle, now)
+    local FALLBACK_PERIODS = { spotlight_cycle_timestamp = E.SpotlightRoundSeconds } -- Spotlight: one round every 30 min
+    function EventTasks.nextRoundStart(cycle, now, period)
         local start = type(cycle) == "table" and tonumber(cycle.timestamp)
         if not start or type(now) ~= "number" then
             return nil
         end
+        period = tonumber(period) or E.RoundSeconds
         while start + 20 < now do
-            start += E.RoundSeconds
+            start += period
         end
         return start
+    end
+    function EventTasks.periodOf(key)
+        return FALLBACK_PERIODS[key]
     end
     -- focus / kindOf (Mega a Pet): a pen pet of another kind makes room for a waiting copy of the focus pet
     function EventTasks.penPlan(pen, growable, keep, slots, focus, kindOf)
@@ -11420,6 +11435,489 @@ __moduleSources["Game/EventTasks"] = function(...)
             return true
         end,
     }
+    -- v3.0.21 Stitches' Spotlight: candy corn on spawner Parts under StaticMap.<interior>Static.CandycornSpawners
+    function EventTasks.spotlightSpawners(interior)
+        local list = {}
+        pcall(function()
+            local static = workspace:FindFirstChild("StaticMap")
+            local folder = static and static:FindFirstChild(tostring(interior) .. "Static")
+            local spawners = folder and folder:FindFirstChild(E.SpotlightSpawnersName)
+            for _, part in ipairs(spawners and spawners:GetChildren() or {}) do
+                if part:IsA("BasePart") then
+                    table.insert(list, part)
+                end
+            end
+        end)
+        return list
+    end
+    EventTasks.spotlight = {
+        id = "spotlight",
+        timeoutSeconds = 330,
+        run = function(ctx, group)
+            local mg = ctx.spotlight
+            if not mg or not mg.available then
+                return false, "Spotlight messages are not available"
+            end
+            local start = group and tonumber(group.start)
+            if not start then
+                return false, "round time unknown"
+            end
+            mg:reset()
+            local function queued()
+                return mg.joinAcceptedAt ~= nil or mg.join ~= nil
+            end
+            -- joins ONLY through the game's own teleport prompt (UsePrompt): puts me in the Circus queue circle
+            local okPrompt, byPrompt = pcall(EventTasks.viaPrompt, ctx, "spotlight", "Circus", start, queued)
+            local p = ctx.interaction.promptTeleport
+            local saidYes = type(p) == "table" and p.kind == "spotlight" and Util.now() - p.at < 90
+            if not (okPrompt and byPrompt == true) and not saidYes and not queued() then
+                return false, "the game's Spotlight prompt was not answered Yes (joined only by its prompt)"
+            end
+            if not (okPrompt and byPrompt == true) then
+                ctx.logger:info("Spotlight", "Yes was pressed on the game's prompt; waiting for the round")
+            end
+            phase(ctx, "Spotlight: waiting for the round", start)
+            ctx.waitUntil(function()
+                return queued() or Minigame.serverNow() >= start + 2
+            end, math.max(0, start - Minigame.serverNow()) + 8)
+            local joinUntil = Util.now() + 30
+            while not queued() and Util.now() < joinUntil do
+                ctx.interaction:send("SpotlightJoin", E.SpotlightId, true, nil)
+                ctx.waitUntil(queued, 3)
+            end
+            if not queued() then
+                return false, "join was not accepted"
+            end
+            if not ctx.waitUntil(function()
+                return mg.join ~= nil
+            end, 40) then
+                return false, "accepted, but the round did not take me in"
+            end
+            local gameId, interior = mg.join.gameId, mg.join.interior
+            local function inRound()
+                return ctx.travel:isAt(E.SpotlightInteriorPrefix)
+            end
+            if not ctx.waitUntil(inRound, 15) then
+                ctx.interaction:send("SpotlightJoin", gameId, true, nil)
+            end
+            if not ctx.waitUntil(inRound, 20) then
+                return false, "did not arrive in the Spotlight round"
+            end
+            ctx.waitUntil(function()
+                return mg.enter ~= nil
+            end, 10)
+            local endTime = (mg.enter and mg.enter.endTime) or (Minigame.serverNow() + 160)
+            if mg.enter and mg.enter.intermissionEnd then
+                phase(ctx, "Spotlight: intro")
+                ctx.waitUntil(function()
+                    return mg.leave ~= nil or Minigame.serverNow() >= mg.enter.intermissionEnd
+                end, 45)
+            end
+            local spawners = EventTasks.spotlightSpawners(interior)
+            ctx.logger:info("Spotlight", string.format("Round %s: %d candy spawners, until %d s from now",
+                tostring(gameId), #spawners, math.floor(endTime - Minigame.serverNow())))
+            local startRoot = myRoot()
+            local safe = startRoot and startRoot.CFrame or nil
+            local floorRef = safe and safe.Position.Y or nil
+            local rescues = 0
+            phase(ctx, "Spotlight: collecting candy corn")
+            local speed = math.clamp(tonumber(ctx.farmConfig.Event and ctx.farmConfig.Event.SpotlightSpeed) or 90, 16, 400)
+            local PICKUP = math.clamp(tonumber(ctx.farmConfig.Event and ctx.farmConfig.Event.SpotlightPickupRange) or 20, 0, 60)
+            local STAND_ABOVE = 3
+            local moves, caught, wasCaught, blockedLegs, rests = 0, 0, false, 0, 0
+            local target, targetPart, resting = nil, nil, false
+            local SKIP_SECONDS = 4
+            local HOLD_SECONDS = 0
+            local arrivedAt = nil
+            local skipUntil = {}
+            local lowest = math.huge
+            for _, part in ipairs(spawners) do
+                lowest = math.min(lowest, part.Position.Y)
+            end
+            local fallLine = lowest < math.huge and lowest - 15 or (floorRef and floorRef - 40) or nil
+            local function highlighted()
+                local character = game:GetService("Players").LocalPlayer.Character
+                return character ~= nil and character:FindFirstChildOfClass("Highlight") ~= nil
+            end
+            local stageCentre, barriers, obstaclesPath, obstaclesShape = nil, {}, nil, ""
+            pcall(function()
+                local roots, seen = {}, {}
+                local function add(r)
+                    if r and not seen[r] then
+                        seen[r] = true
+                        table.insert(roots, r)
+                    end
+                end
+                local staticRound = spawners[1] and spawners[1].Parent and spawners[1].Parent.Parent
+                add(staticRound)
+                local static = workspace:FindFirstChild("StaticMap")
+                if staticRound and static then
+                    add(static:FindFirstChild((string.gsub(staticRound.Name, "Static$", ""))))
+                end
+                add(static and static:FindFirstChild(tostring(interior)))
+                local interiors = workspace:FindFirstChild("Interiors")
+                add(interiors and interiors:FindFirstChild(tostring(interior)))
+                for _, r in ipairs(roots) do
+                    local centre = r:FindFirstChild("StageCentre", true)
+                    if centre and not stageCentre then
+                        stageCentre = centre:IsA("BasePart") and centre.Position
+                            or (centre:IsA("Model") and centre:GetPivot().Position)
+                            or (centre:IsA("Attachment") and centre.WorldPosition) or nil
+                    end
+                    local obstacles = r:FindFirstChild("Obstacles", true)
+                    if obstacles and not obstaclesPath then
+                        obstaclesPath = obstacles:GetFullName()
+                        local parts = {}
+                        for _, group in ipairs(obstacles:GetChildren()) do
+                            if #parts < 8 then
+                                table.insert(parts, string.format("%s(%d)", group.Name, #group:GetChildren()))
+                            end
+                        end
+                        obstaclesShape = table.concat(parts, ", ")
+                        for _, group in ipairs(obstacles:GetChildren()) do
+                            local items = (group:IsA("Folder") or group:IsA("Model")) and #group:GetChildren() > 0
+                                and group:GetChildren() or { group }
+                            for _, inst in ipairs(items) do
+                                if inst:IsA("Model") or inst:IsA("BasePart") then
+                                    table.insert(barriers, inst)
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+            if obstaclesPath then
+                ctx.logger:info("Spotlight", "Obstacles: " .. obstaclesPath .. " -> " .. obstaclesShape)
+            end
+            ctx.logger:info("Spotlight", string.format("Barriers: %d, stage centre %s, bottom floor y %.1f, %d studs/s",
+                #barriers, stageCentre and "found" or "not found", lowest < math.huge and lowest or 0, speed))
+            local function candyOf(part)
+                for _, child in ipairs(part:GetChildren()) do
+                    if child:IsA("Model") or child:IsA("BasePart") then
+                        return child
+                    end
+                end
+                return nil
+            end
+            local function spawned(part)
+                return candyOf(part) ~= nil
+            end
+            local function goalOf(part)
+                local candy = candyOf(part)
+                local okBox, centre = pcall(function()
+                    if candy:IsA("Model") then
+                        return (candy:GetBoundingBox()).Position
+                    end
+                    return candy.Position
+                end)
+                if okBox and centre then
+                    return Vector3.new(centre.X, part.Position.Y + STAND_ABOVE, centre.Z)
+                end
+                return part.Position + Vector3.new(0, STAND_ABOVE, 0)
+            end
+            local function barrierThere(inst)
+                if not inst or not inst.Parent then
+                    return false
+                end
+                local solid = false
+                pcall(function()
+                    local parts = inst:IsA("BasePart") and { inst } or inst:GetDescendants()
+                    for _, p in ipairs(parts) do
+                        if p:IsA("BasePart") and p.CanCollide and p.Transparency < 0.9 then
+                            solid = true
+                            break
+                        end
+                    end
+                end)
+                return solid
+            end
+            local function barrierPos(inst)
+                local okPos, pos = pcall(function()
+                    return inst:IsA("Model") and inst:GetPivot().Position or inst.Position
+                end)
+                return okPos and pos or nil
+            end
+            local restBarrier = nil
+            local FINAL_SECONDS = 15
+            local function flatDist(a, b)
+                return Vector3.new(a.X - b.X, 0, a.Z - b.Z).Magnitude
+            end
+            local pullWaited = setmetatable({}, { __mode = "k" })
+            local function pickNext(here)
+                local now = Util.now()
+                local list = {}
+                for _, part in ipairs(spawners) do
+                    if part.Parent and part ~= targetPart and now >= (skipUntil[part] or 0) and spawned(part) then
+                        local d = flatDist(part.Position, here)
+                        local candy = candyOf(part)
+                        if PICKUP > 0 and d <= PICKUP and not pullWaited[candy] then
+                            skipUntil[part], pullWaited[candy] = now + 1.5, true
+                        else
+                            table.insert(list, { part = part, d = d })
+                        end
+                    end
+                end
+                table.sort(list, function(x, y)
+                    return x.d < y.d
+                end)
+                for i, c in ipairs(list) do
+                    if i > 6 then break end
+                    if not ctx.interaction:legBlocked(here, goalOf(c.part), c.part) then
+                        return c.part
+                    end
+                    blockedLegs += 1
+                end
+                return list[1] and list[1].part or nil
+            end
+            local function anySpawned()
+                for _, part in ipairs(spawners) do
+                    if part.Parent and spawned(part) then
+                        return true
+                    end
+                end
+                return false
+            end
+            local function restGoal(here)
+                restBarrier = nil
+                if #barriers == 0 or Minigame.serverNow() >= endTime - FINAL_SECONDS then
+                    return nil
+                end
+                local from = stageCentre
+                local standing = {}
+                for _, inst in ipairs(barriers) do
+                    local b = barrierThere(inst) and barrierPos(inst)
+                    if b then
+                        table.insert(standing, { inst = inst, pos = b, d = (b - here).Magnitude })
+                    end
+                end
+                if #standing == 0 then return nil end
+                table.sort(standing, function(x, y) return x.d < y.d end)
+                local function floorY(spot)
+                    local y, nearD = here.Y, nil
+                    for _, part in ipairs(spawners) do
+                        local d = Vector3.new(part.Position.X - spot.X, 0, part.Position.Z - spot.Z).Magnitude
+                        if not nearD or d < nearD then
+                            y, nearD = part.Position.Y + STAND_ABOVE, d
+                        end
+                    end
+                    return y
+                end
+                local rayParams = RaycastParams.new()
+                rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                pcall(function()
+                    rayParams.FilterDescendantsInstances = { game:GetService("Players").LocalPlayer.Character }
+                end)
+                for i = 1, math.min(4, #standing) do
+                    local c = standing[i]
+                    local away = from and Vector3.new(c.pos.X - from.X, 0, c.pos.Z - from.Z) or Vector3.new(0, 0, 1)
+                    away = away.Magnitude > 0.5 and away.Unit or Vector3.new(0, 0, 1)
+                    for _, back in ipairs({ 4, 6, 9 }) do
+                        local spot = c.pos + away * back
+                        local y = floorY(spot)
+                        local body = Vector3.new(spot.X, y, spot.Z)
+                        if from then
+                            local origin = Vector3.new(from.X, y, from.Z)
+                            local okRay, hit = pcall(function()
+                                return workspace:Raycast(origin, body - origin, rayParams)
+                            end)
+                            local inst = okRay and hit and hit.Instance
+                            if inst and (inst == c.inst or inst:IsDescendantOf(c.inst)) then
+                                restBarrier = c.inst
+                                return body
+                            end
+                        end
+                    end
+                end
+                local c = standing[1]
+                restBarrier = c.inst
+                local away = from and Vector3.new(c.pos.X - from.X, 0, c.pos.Z - from.Z) or Vector3.new(0, 0, 1)
+                away = away.Magnitude > 0.5 and away.Unit or Vector3.new(0, 0, 1)
+                local spot = c.pos + away * 5
+                return Vector3.new(spot.X, floorY(spot), spot.Z)
+            end
+            local function retarget(here)
+                arrivedAt = nil
+                local part = pickNext(here)
+                if part then
+                    if resting then resting = false end
+                    targetPart, target = part, goalOf(part)
+                    moves += 1
+                    return
+                end
+                targetPart = nil
+                if anySpawned() then
+                    resting, target = false, nil
+                    return
+                end
+                if not resting then
+                    resting = true
+                    rests += 1
+                    target = restGoal(here)
+                elseif target and (not barrierThere(restBarrier) or Minigame.serverNow() >= endTime - FINAL_SECONDS) then
+                    target = restGoal(here)
+                end
+            end
+            local standHumanoid
+            pcall(function()
+                standHumanoid = game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                standHumanoid.PlatformStand = false
+            end)
+            local pickupSamples, removals = {}, {}
+            local counterLabel
+            pcall(function()
+                counterLabel = game:GetService("Players").LocalPlayer.PlayerGui.MinigameInGameApp.Body.Right.Container.ValueLabel
+            end)
+            for _, part in ipairs(spawners) do
+                pcall(function()
+                    local conn = part.ChildRemoved:Connect(function(child)
+                        if child:IsA("Model") or child:IsA("BasePart") then
+                            local root = myRoot()
+                            if root then
+                                table.insert(removals, { at = os.clock(), d = Vector3.new(part.Position.X - root.Position.X, 0,
+                                    part.Position.Z - root.Position.Z).Magnitude })
+                                if #removals > 2000 then table.remove(removals, 1) end
+                            end
+                        end
+                    end)
+                    if ctx.maid then ctx.maid:Give(conn) end
+                end)
+            end
+            local gains = {}
+            if counterLabel then
+                local lastCount = tonumber(counterLabel.Text) or 0
+                local conn = counterLabel:GetPropertyChangedSignal("Text"):Connect(function()
+                    local n = tonumber(counterLabel.Text) or lastCount
+                    local gained = n - lastCount
+                    lastCount = n
+                    if gained > 0 and #gains < 2000 then
+                        table.insert(gains, { at = os.clock(), n = gained })
+                    end
+                end)
+                if ctx.maid then ctx.maid:Give(conn) end
+            end
+            local active, mover = true, nil
+            local function stopMoving()
+                active = false
+                if mover then
+                    pcall(function() mover:Disconnect() end)
+                    mover = nil
+                end
+                pcall(function()
+                    if standHumanoid then standHumanoid.PlatformStand = false end
+                end)
+            end
+            if ctx.maid then ctx.maid:Give(stopMoving) end
+            task.delay(math.max(5, endTime - Minigame.serverNow() + 15), function()
+                pcall(function()
+                    if standHumanoid and standHumanoid.PlatformStand then
+                        standHumanoid.PlatformStand = false
+                    end
+                end)
+            end)
+            local RunService = game:GetService("RunService")
+            local okSignal, signal = pcall(function() return RunService.PreSimulation end)
+            if not okSignal or not signal then signal = RunService.Stepped end
+            mover = signal:Connect(function(a, b)
+                local dt = type(b) == "number" and b or a
+                if not active or mg.leave or Minigame.serverNow() > endTime + 3 then
+                    stopMoving()
+                    return
+                end
+                local root = myRoot()
+                if not root or root.Anchored then return end
+                pcall(function()
+                    local pos = root.Position
+                    if targetPart and not spawned(targetPart) then
+                        if arrivedAt then skipUntil[targetPart] = Util.now() + SKIP_SECONDS end
+                        arrivedAt = nil
+                        retarget(pos)
+                    end
+                    if arrivedAt and targetPart then
+                        if Util.now() - arrivedAt < HOLD_SECONDS then
+                            root.AssemblyLinearVelocity = Vector3.zero
+                            return
+                        end
+                        skipUntil[targetPart] = Util.now() + SKIP_SECONDS
+                        arrivedAt = nil
+                        retarget(pos)
+                    end
+                    if not target then return end
+                    local delta = target - pos
+                    local dist = delta.Magnitude
+                    if targetPart and PICKUP > 0 and not pullWaited[candyOf(targetPart) or 0] and flatDist(target, pos) <= PICKUP * 0.6 then
+                        skipUntil[targetPart] = Util.now() + 1.5
+                        pullWaited[candyOf(targetPart) or 0] = true
+                        retarget(pos)
+                        if not target then return end
+                        delta = target - pos
+                        dist = delta.Magnitude
+                    end
+                    local step = speed * math.min(dt, 0.1)
+                    if dist <= step then
+                        root.AssemblyLinearVelocity = Vector3.zero
+                        root.CFrame = CFrame.new(target) * (root.CFrame - root.CFrame.Position)
+                        if targetPart and not arrivedAt then arrivedAt = Util.now() end
+                        return
+                    end
+                    local nextPos = pos + delta.Unit * step
+                    root.AssemblyLinearVelocity = Vector3.zero
+                    root.AssemblyAngularVelocity = Vector3.zero
+                    local flat = Vector3.new(delta.X, 0, delta.Z)
+                    if flat.Magnitude > 0.5 then
+                        root.CFrame = CFrame.lookAt(nextPos, nextPos + flat.Unit)
+                    else
+                        root.CFrame = CFrame.new(nextPos) * (root.CFrame - root.CFrame.Position)
+                    end
+                end)
+            end)
+            local statusAt = 0
+            local ok, err = pcall(function()
+                while active and not mg.leave and Minigame.serverNow() < endTime and inRound() do
+                    if Util.now() - statusAt >= 1 then
+                        statusAt = Util.now()
+                        local count = counterLabel and tonumber(counterLabel.Text)
+                        phase(ctx, string.format("Spotlight: %s candy corn, %d s left", count and tostring(count) or "?",
+                            math.max(0, math.floor(endTime - Minigame.serverNow()))))
+                    end
+                    local root = myRoot()
+                    if root and fallLine and root.Position.Y < fallLine and safe then
+                        rescues += 1
+                        target, targetPart = nil, nil
+                        pcall(function()
+                            root.AssemblyLinearVelocity = Vector3.zero
+                            root.Parent:PivotTo(safe)
+                        end)
+                        if rescues <= 3 then
+                            ctx.logger:warn("Spotlight", string.format("Fell under the floor (y %.0f < %.0f): rescue",
+                                root.Position.Y, fallLine))
+                        end
+                    elseif root and not root.Anchored then
+                        if fallLine and root.Position.Y > fallLine + 10 and root.Position.Y < fallLine + 80 and not resting then
+                            safe = root.CFrame
+                        end
+                        local lit = highlighted()
+                        if lit and not wasCaught then caught += 1 end
+                        wasCaught = lit
+                        if standHumanoid and standHumanoid.Parent ~= root.Parent then
+                            pcall(function()
+                                standHumanoid = root.Parent:FindFirstChildOfClass("Humanoid")
+                                standHumanoid.PlatformStand = false
+                            end)
+                        end
+                        if not target or resting then retarget(root.Position) end
+                    end
+                    task.wait(0.25)
+                end
+            end)
+            stopMoving()
+            ctx.logger:info("Spotlight", string.format("Round end: went to a candy corn %d x, rested %d x, %d blocked, pickup %d studs",
+                moves, rests, blockedLegs, PICKUP))
+            if not ok then
+                ctx.logger:warn("Spotlight", "Round loop error: " .. tostring(err))
+            end
+            return true
+        end,
+    }
     function EventTasks.newToken()
         local ok, guid = pcall(function()
             return game:GetService("HttpService"):GenerateGUID(false)
@@ -11901,6 +12399,7 @@ __moduleSources["Game/TaskManager"] = function(...)
         self._gameData = deps.gameData
         self._farmConfig = deps.farmConfig
         self._minigame = deps.minigame
+        self._spotlight = deps.spotlight -- v3.0.21: Stitches' Spotlight messages (a second Minigame reader)
         self._hauntlet = deps.hauntlet
         self._nextEventAt = {}
         self._running = nil
@@ -12053,6 +12552,7 @@ __moduleSources["Game/TaskManager"] = function(...)
             gameData = self._gameData,
             farmConfig = self._farmConfig,
             minigame = self._minigame,
+            spotlight = self._spotlight, -- v3.0.21: Stitches' Spotlight
             hauntlet = self._hauntlet,
             maid = runMaid,
         }
@@ -12412,6 +12912,11 @@ __moduleSources["Game/TaskManager"] = function(...)
                 self._logger:info("Ghost", "Priority interrupt: stopping " .. self._running.label .. " for the Ghost Gallery round")
                 self:_finish("INTERRUPTED", "Ghost Gallery round")
                 self:_finish("INTERRUPTED", "Ghost Gallery round", "_side")
+            elseif not NEVER_INTERRUPT[self._running.key] and self._running.key ~= "spotlight"
+                and self:_spotlightStart(HAUNTLET_INTERRUPT_SECONDS) then
+                self._logger:info("Spotlight", "Priority interrupt: stopping " .. self._running.label .. " for Stitches' Spotlight round")
+                self:_finish("INTERRUPTED", "Stitches' Spotlight round")
+                self:_finish("INTERRUPTED", "Stitches' Spotlight round", "_side")
             else
                 self:_maybeStartSide()
             end
@@ -12655,6 +13160,55 @@ __moduleSources["Game/TaskManager"] = function(...)
             self:_start(best.kind, best.kind .. " (" .. table.concat(owners, " + ") .. ")", bestTask, best, false, true)
         end
     end
+    -- v3.0.21: Stitches' Spotlight scheduler methods
+    function TaskManager:_spotlightOn()
+        local event = self._farmConfig.Event
+        return type(event) == "table" and event.Enabled == true and event.Spotlight == true and self._spotlight ~= nil
+            and self._spotlight.available == true and not self:_isBlocked("spotlight")
+    end
+    function TaskManager:_spotlightStart(lead)
+        if not self:_spotlightOn() then
+            return nil
+        end
+        local serverNow = Minigame.serverNow()
+        local prompt = self._interaction and self._interaction.promptTeleport
+        if type(prompt) == "table" and prompt.kind == "spotlight" and Util.now() - prompt.at < 60
+            and (self._spotlightStartedAt or -math.huge) < prompt.at then
+            local at = serverNow + math.max(0, GameConstants.Event.SpotlightPromptLead - (Util.now() - prompt.at))
+            if self:_biggerMinigameAround(at) then
+                return nil
+            end
+            return at, "prompt"
+        end
+        if Util.now() < (self._nextEventAt.spotlight or 0) or not self._gameData then
+            return nil
+        end
+        local start = EventTasks.nextRoundStart(self._gameData:get(GameConstants.DataKeys.SpotlightCycle), serverNow,
+            EventTasks.periodOf(GameConstants.DataKeys.SpotlightCycle))
+        if start and start - serverNow <= lead and start - serverNow > -10 then
+            local bigger = self:_biggerMinigameAround(start)
+            if bigger then
+                if Util.now() - (self._spotSkipLogAt or -1e9) > 600 then
+                    self._spotSkipLogAt = Util.now()
+                    self._logger:info("Spotlight", "Stitches' Spotlight skipped: " .. bigger
+                        .. " plays at that time (priority: Hauntlet > Ghost Gallery > Spotlight)")
+                end
+                return nil
+            end
+            return start, "timer"
+        end
+        return nil
+    end
+    function TaskManager:_biggerMinigameAround(start)
+        if not start then return nil end
+        local serverNow = Minigame.serverNow()
+        local lead = start - serverNow + 90
+        local h = self:_hauntletRoundDue(math.max(lead, 0))
+        if h and math.abs(h - start) <= 90 then return "Hauntlet" end
+        local g = self:_ghostRoundDue(math.max(lead, 0))
+        if g and math.abs(g - start) <= 90 then return "Ghost Gallery" end
+        return nil
+    end
     function TaskManager:_ghostRoundDue(lead)
         local event = self._farmConfig.Event
         local data = self._gameData
@@ -12802,6 +13356,16 @@ __moduleSources["Game/TaskManager"] = function(...)
             local hauntStart = self:_hauntletRoundDue(HAUNTLET_LEAD_SECONDS)
             if hauntPending or (hauntStart and not (event.GhostGallery and self:_ghostRoundDue(HAUNTLET_GHOST_GAP_SECONDS))) then
                 return "hauntlet", "Hauntlet run", EventTasks.hauntlet, hauntStart and { start = hauntStart } or nil
+            end
+        end
+        -- v3.0.22: Stitches' Spotlight round (timer or game's prompt) before all other non-minigame jobs
+        do
+            local spotStart, how = self:_spotlightStart(GHOST_GALLERY_LEAD_SECONDS)
+            if spotStart then
+                self._logger:info("Spotlight", "Stitches' Spotlight round (" .. tostring(how) .. ") in "
+                    .. math.floor(spotStart - Minigame.serverNow()) .. " s")
+                self._spotlightStartedAt = Util.now()
+                return "spotlight", "Stitches' Spotlight round", EventTasks.spotlight, { start = spotStart }
             end
         end
         local nest = event.PigeonNest ~= false and self:_autoNest()
@@ -13451,6 +14015,8 @@ __moduleSources["main"] = function(...)
                 tracker:start(maid)
                 local minigame = Minigame.new(logger)
                 minigame:start(maid)
+                local spotlight = Minigame.new(logger, GameConstants.Event.SpotlightId) -- v3.0.21: Stitches' Spotlight listener
+                spotlight:start(maid)
                 local hauntlet = Hauntlet.new(logger, game:GetService("Players").LocalPlayer.UserId)
                 hauntlet:start(maid)
                 -- v2.1.3: the squad finder (same worker, /squad), ONLY on accounts that carry the private squad key
@@ -13478,6 +14044,7 @@ __moduleSources["main"] = function(...)
                 end)
                 taskManager = TaskManager.new({
                     minigame = minigame,
+                    spotlight = spotlight, -- v3.0.21: Stitches' Spotlight
                     hauntlet = hauntlet,
                     logger = logger,
                     state = state,
