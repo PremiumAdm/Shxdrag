@@ -11435,6 +11435,94 @@ __moduleSources["Game/EventTasks"] = function(...)
             return true
         end,
     }
+    -- v2.1.20: game's HintApp hint watcher (tells us which minigame's queue we are in)
+    local queueHint, hintLabel = {}, nil
+    local function wireQueueHint()
+        if hintLabel and hintLabel:IsDescendantOf(game) then
+            return
+        end
+        hintLabel = nil
+        pcall(function()
+            local gui = game:GetService("Players").LocalPlayer:FindFirstChild("PlayerGui")
+            local app = gui and gui:FindFirstChild("HintApp")
+            local label = app and app:FindFirstChild("TextLabel")
+            if not (label and label:IsA("TextLabel")) then
+                return
+            end
+            local function read()
+                local text = string.lower(tostring(label.Text))
+                if not string.find(text, "queue", 1, true) then
+                    return
+                end
+                local kind = string.find(text, "hauntlet", 1, true) and "hauntlet"
+                    or (string.find(text, "ghost", 1, true) and "ghost") or nil
+                if kind then
+                    queueHint[kind] = { inQueue = string.find(text, "left the queue", 1, true) == nil, at = Util.now() }
+                end
+            end
+            label:GetPropertyChangedSignal("Text"):Connect(function()
+                pcall(read)
+            end)
+            pcall(read)
+            hintLabel = label
+        end)
+    end
+    -- true = the game's last hint (after `since`) says I am in that minigame's queue
+    function EventTasks.inQueueByHint(kind, since)
+        wireQueueHint()
+        local q = queueHint[kind]
+        return q ~= nil and q.inQueue == true and q.at >= (tonumber(since) or 0)
+    end
+    -- v2.1.20: go home first, then wait for the game's "Teleport there now?" prompt and click Yes
+    function EventTasks.viaPrompt(ctx, kind, place, startAt, stop)
+        stop = type(stop) == "function" and stop or function()
+            return false
+        end
+        if type(ctx.farmConfig.Event) == "table" and ctx.farmConfig.Event.UsePrompt == false then
+            return false
+        end
+        if ctx.travel:isAt(place) or stop() then
+            return true
+        end
+        local function prompted()
+            local p = ctx.interaction.promptTeleport
+            return p ~= nil and p.kind == kind and Util.now() - p.at < 60
+        end
+        if not prompted() and not ctx.travel:isAt(GameConstants.HouseInteriorName) then
+            ctx.logger:info("Event", kind .. ": home first, then the game's own teleport prompt")
+            phase(ctx, "going home first (the game's teleport prompt comes there)", startAt)
+            pcall(function()
+                ctx.travel:goTo(GameConstants.HouseInteriorName)
+            end)
+        end
+        -- v3.0.23: Spotlight prompt shows 33 s before its start, others ~45 s; wait ends 12 s before a Spotlight start
+        local left = startAt and (startAt - Minigame.serverNow() - (kind == "spotlight" and 12 or 32)) or 20
+        if not prompted() and not stop() then
+            phase(ctx, "at home, waiting for the game's 'Teleport there now?' prompt", startAt)
+            ctx.waitUntil(function()
+                return prompted() or stop()
+            end, math.max(0, math.min(left, 70)))
+        end
+        if stop() then
+            return true
+        end
+        if not prompted() then
+            ctx.logger:info("Event", kind .. ": no teleport prompt came: going there the usual way")
+            return false
+        end
+        phase(ctx, "the game's prompt said Yes: the game is taking me there", startAt)
+        ctx.waitUntil(function()
+            return ctx.travel:isAt(place) or stop()
+        end, 15)
+        local arrived = ctx.travel:isAt(place)
+        if not arrived and stop() then
+            ctx.logger:info("Event", kind .. ": the game's teleport prompt queued me")
+            return true
+        end
+        ctx.logger:info("Event", kind .. ": the game's teleport prompt " .. (arrived and ("brought me to " .. place)
+            or "did not bring me: going there the usual way"))
+        return arrived
+    end
     -- v3.0.21 Stitches' Spotlight: candy corn on spawner Parts under StaticMap.<interior>Static.CandycornSpawners
     function EventTasks.spotlightSpawners(interior)
         local list = {}
@@ -14002,6 +14090,366 @@ __moduleSources["main"] = function(...)
                 end
                 maid:Give(task.spawn(watchMenu))
             end
+            -- v2.1.5: the known dialogs get their harmless answer the whole session.
+            -- "Teleport there now?" -> Yes for the minigame the farm is going to, No otherwise.
+            local DIALOGS = {
+                { text = "starting soon", button = "^%s*no%s*$", label = "Minigame starting soon", prompt = true },
+                -- v2.1.8: found by its frame (DialogApp > CheckboxDialog), whatever the language
+                { frame = "CheckboxDialog", screen = "DialogApp", text = "\0never\0", button = "^%s*no%s*$",
+                    label = "Minigame starting soon (any language)", prompt = true },
+                { text = "crypt has been reset", button = "^%s*okay%s*$", label = "Crypt reset (Okay)" },
+                { text = "game over", button = "^%s*nice!?%s*$", label = "Game over (Nice)" },
+                { text = "new pet discovered", button = "^%s*done%s*$", label = "New pet discovered (Done)" },
+                { text = "journal updated", button = "^%s*done%s*$", label = "Journal updated (Done)" },
+            }
+            local function buttonText(button)
+                local parts = {}
+                if button:IsA("TextButton") then
+                    table.insert(parts, button.Text)
+                end
+                for _, object in ipairs(button:GetDescendants()) do
+                    if (object:IsA("TextLabel") or object:IsA("TextButton")) and object.Text ~= "" then
+                        table.insert(parts, object.Text)
+                    end
+                end
+                return string.lower(table.concat(parts, " "))
+            end
+            local function findDialogButton(dialogGui, pattern)
+                for _, object in ipairs(dialogGui:GetDescendants()) do
+                    local button = nil
+                    if object:IsA("TextButton") then
+                        button = string.find(string.lower(object.Text), pattern) and object or nil
+                    elseif object:IsA("TextLabel") and string.find(string.lower(object.Text), pattern) then
+                        button = object:FindFirstAncestorWhichIsA("GuiButton")
+                    end
+                    if button and button:IsDescendantOf(dialogGui) and isOnScreen(button) and not isForbidden(button) then
+                        return button
+                    end
+                end
+                return nil
+            end
+            local function tickDontShowAgain(dialogGui)
+                for _, object in ipairs(dialogGui:GetDescendants()) do
+                    if (object:IsA("TextLabel") or object:IsA("TextButton")) and isOnScreen(object)
+                        and string.find(string.lower(object.Text), "do not show again") then
+                        local box = object:IsA("GuiButton") and object or nil
+                        local holder = object.Parent
+                        if not box and holder and holder:IsA("GuiButton") then
+                            box = holder
+                        end
+                        for _, near in ipairs(not box and holder and holder:GetChildren() or {}) do
+                            if not box and near:IsA("GuiButton") and isOnScreen(near) then
+                                local text = buttonText(near)
+                                if not string.find(text, "%a") or string.find(text, "do not show again") then
+                                    box = near
+                                end
+                            end
+                        end
+                        if box and not isForbidden(box) then
+                            for _, method in ipairs(Interaction.CLICK_METHODS) do
+                                if Interaction.clickButton(box, method) then
+                                    break
+                                end
+                            end
+                            task.wait(0.3)
+                        end
+                        return
+                    end
+                end
+            end
+            local function hideDialog(marker, dialogGui)
+                local frame = marker
+                while frame.Parent and frame.Parent ~= dialogGui do
+                    frame = frame.Parent
+                end
+                if frame:IsA("GuiObject") then
+                    frame.Visible = false
+                    return true
+                end
+                return false
+            end
+            -- v2.1.6: ONE pass over visible ScreenGuis every 3 s for all dialogs; quick closer: 2 s per click method
+            local function quickClose(label, button, isOpen, once)
+                for _, method in ipairs(Interaction.CLICK_METHODS) do
+                    if not isOpen() then
+                        return true
+                    end
+                    if (method == "touch" or method == "mouse") and not (button.Parent and visibleNow(button)) then
+                        return false
+                    end
+                    local ran = Interaction.clickButton(button, method)
+                    if ran then
+                        local untilAt = os.clock() + 2
+                        while isOpen() and os.clock() < untilAt do
+                            task.wait(0.25)
+                        end
+                        if not isOpen() then
+                            logger:debug("Game", label .. ": closed (" .. method .. ")")
+                            return true
+                        end
+                        if once then
+                            local closeBy = os.clock() + 4
+                            while isOpen() and os.clock() < closeBy do
+                                task.wait(0.25)
+                            end
+                            if not isOpen() then
+                                logger:debug("Game", label .. ": closed (" .. method .. ")")
+                                return true
+                            end
+                        end
+                    end
+                end
+                return false
+            end
+            if playerGui and config.Farm.AutoCloseDialogs ~= false then
+                maid:Give(task.spawn(function()
+                    local misses, fails, whiteSince = {}, {}, {}
+                    local shownBefore = nil
+                    while true do
+                        task.wait(3)
+                        pcall(function()
+                            local now = {}
+                            for _, screen in ipairs(playerGui:GetChildren()) do
+                                if screen:IsA("ScreenGui") and screen.Enabled then
+                                    for _, frame in ipairs(screen:GetChildren()) do
+                                        if frame:IsA("GuiObject") and frame.Visible then
+                                            local key = screen.Name .. "/" .. frame.Name
+                                            now[key] = true
+                                            if shownBefore and not shownBefore[key] then
+                                                local texts = {}
+                                                for _, d in ipairs(frame:GetDescendants()) do
+                                                    if #texts >= 5 then
+                                                        break
+                                                    end
+                                                    if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text ~= ""
+                                                        and isOnScreen(d) then
+                                                        table.insert(texts, d.Text)
+                                                    end
+                                                end
+                                                if #texts > 0 then
+                                                    Interaction.guiLog("SHOWN " .. key .. ": "
+                                                        .. Util.truncate(table.concat(texts, " | "), 200))
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                            shownBefore = now
+                        end)
+                        if config.Farm.AutoCloseDialogs ~= false and config.Farm.Enabled ~= false then
+                            pcall(function()
+                                local hits, also = {}, {}
+                                local whiteNow = {}
+                                for _, screen in ipairs(playerGui:GetChildren()) do
+                                    if screen:IsA("ScreenGui") and screen.Enabled then
+                                        if screen.Name == "PlaytimePayoutsApp" then
+                                            for _, frame in ipairs(screen:GetChildren()) do
+                                                if frame:IsA("GuiObject") and frame.Visible then
+                                                    frame.Visible = false
+                                                    logger:debug("Game", "Playtime payout window hidden")
+                                                end
+                                            end
+                                        end
+                                        local shownObjects = {}
+                                        local function collect(node)
+                                            for _, child in ipairs(node:GetChildren()) do
+                                                if not child:IsA("GuiObject") or child.Visible then
+                                                    table.insert(shownObjects, child)
+                                                    collect(child)
+                                                end
+                                            end
+                                        end
+                                        collect(screen)
+                                        for _, object in ipairs(shownObjects) do
+                                            if object:IsA("GuiObject") and string.find(string.lower(object.Name), "whiteout", 1, true)
+                                                and object.Visible and (object.BackgroundTransparency < 0.9
+                                                    or (object:IsA("ImageLabel") and object.ImageTransparency < 0.9))
+                                                and isOnScreen(object) then
+                                                whiteNow[object] = true
+                                                if not whiteSince[object] then
+                                                    whiteSince[object] = Util.now()
+                                                    Interaction.guiLog("WHITEOUT shown " .. object:GetFullName())
+                                                end
+                                                if Util.now() - whiteSince[object] >= 8 then
+                                                    pcall(function()
+                                                        object.Visible = false
+                                                    end)
+                                                    whiteSince[object] = nil
+                                                    logger:info("Game", "White screen: the game's white fade was stuck on for 8 s:"
+                                                        .. " hidden (" .. object:GetFullName() .. ")")
+                                                    Interaction.guiLog("WHITEOUT hidden " .. object:GetFullName())
+                                                end
+                                            end
+                                            for _, rule in ipairs(DIALOGS) do
+                                                if rule.frame and not hits[rule] and object.Name == rule.frame
+                                                    and screen.Name == rule.screen and isOnScreen(object) then
+                                                    hits[rule] = object
+                                                end
+                                            end
+                                            if (object:IsA("TextLabel") or object:IsA("TextButton")) and object.Text ~= "" then
+                                                local text = string.lower(object.Text)
+                                                if string.find(text, "do not show again", 1, true) then
+                                                    also[screen] = true
+                                                end
+                                                for _, rule in ipairs(DIALOGS) do
+                                                    if not hits[rule] and string.find(text, rule.text) and isOnScreen(object) then
+                                                        hits[rule] = object
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                                for object in pairs(whiteSince) do
+                                    if not whiteNow[object] then
+                                        whiteSince[object] = nil
+                                    end
+                                end
+                                for _, rule in ipairs(DIALOGS) do
+                                    local marker = hits[rule]
+                                    local dialogGui = marker and marker:FindFirstAncestorOfClass("ScreenGui")
+                                    if dialogGui and Util.now() >= (misses[rule.label] or 0)
+                                        and (not rule.also or also[dialogGui]) then
+                                        local pattern, label = rule.button, rule.label
+                                        local promptKind = nil
+                                        if rule.prompt then
+                                            local box = marker:FindFirstAncestor("Dialog") or marker.Parent or marker
+                                            local seen = {}
+                                            for _, d in ipairs(box:GetDescendants()) do
+                                                if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text ~= "" and isOnScreen(d) then
+                                                    table.insert(seen, d.Text)
+                                                end
+                                            end
+                                            if marker:IsA("TextLabel") then
+                                                table.insert(seen, marker.Text)
+                                            end
+                                            local all = string.lower(table.concat(seen, " | "))
+                                            local hasHaunt = string.find(all, "hauntlet", 1, true) ~= nil
+                                            local hasGhost = string.find(all, "ghost", 1, true) ~= nil
+                                                or string.find(all, "gallery", 1, true) ~= nil
+                                            -- v3.0.21: "Stitches' Spotlight yakında başlıyor!" was read as Ghost Gallery
+                                            local hasSpot = string.find(all, "spotlight", 1, true) ~= nil
+                                                or string.find(all, "stitches", 1, true) ~= nil
+                                            local mixed = (hasHaunt and hasGhost) or (hasSpot and (hasHaunt or hasGhost))
+                                            promptKind = hasHaunt and "hauntlet" or (hasSpot and "spotlight") or "ghost"
+                                            local event = config.Farm.Event or {}
+                                            local doing = state:get("farm.currentTask")
+                                            local wanted = event.UsePrompt ~= false
+                                                and ((promptKind == "hauntlet" and event.Hauntlet and doing == "hauntlet")
+                                                    or (promptKind == "ghost" and event.GhostGallery and doing == "ghost_gallery")
+                                                    or (promptKind == "spotlight" and event.Spotlight == true
+                                                        and doing ~= "hauntlet" and doing ~= "ghost_gallery"
+                                                        and not (function()
+                                                            local p = tostring(state:get("player.interior") or "")
+                                                            local E = GameConstants.Event
+                                                            return string.find(p, E.MinigameInteriorPrefix, 1, true) == 1
+                                                                or string.find(p, E.HauntletInteriorPrefix, 1, true) == 1
+                                                                or string.find(p, E.SpotlightInteriorPrefix, 1, true) == 1
+                                                        end)()))
+                                            local here = state:get("player.interior")
+                                            local there = promptKind == "hauntlet" and "HauntedHotel"
+                                                or (promptKind == "spotlight" and "Circus") or "HauntedManor"
+                                            local alreadyThere = type(here) == "string" and string.sub(here, 1, #there) == there
+                                            wanted = wanted and not mixed and not alreadyThere
+                                            pattern = wanted and "^%s*yes%s*$" or "^%s*no%s*$"
+                                            label = (promptKind == "hauntlet" and "Hauntlet"
+                                                or (promptKind == "spotlight" and "Stitches' Spotlight") or "Ghost Gallery")
+                                                .. " teleport prompt (" .. (wanted and "Yes" or "No") .. ")"
+                                            if not wanted then
+                                                promptKind = nil
+                                            end
+                                        end
+                                        local button = findDialogButton(dialogGui, pattern)
+                                        if button then
+                                            if not rule.prompt then
+                                                tickDontShowAgain(dialogGui)
+                                            end
+                                            if quickClose(label, button, function()
+                                                return isOnScreen(marker)
+                                            end, promptKind ~= nil) then
+                                                if promptKind then
+                                                    Interaction.promptTeleport = { kind = promptKind, at = Util.now() }
+                                                end
+                                                logger:info("Game", label .. ": closed")
+                                                fails[rule.label] = 0
+                                            else
+                                                fails[rule.label] = (fails[rule.label] or 0) + 1
+                                                local hidden = hideDialog(marker, dialogGui)
+                                                if fails[rule.label] >= 2 then
+                                                    misses[rule.label] = Util.now() + 300
+                                                    logger:warn("Game", rule.label .. ": could not be closed twice"
+                                                        .. (hidden and " (hidden)" or "") .. ": left alone for 5 min")
+                                                else
+                                                    misses[rule.label] = Util.now() + 60
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end)
+                        end
+                    end
+                end))
+            end
+            -- v2.1.6: character stuck in the floor (FloorMaterial Air, not falling, or FallingDown/Ragdoll) for 3 s → rescue
+            maid:Give(task.spawn(function()
+                local stuckFor, lastLift, wedgedFor, lastPos, noSpotLogAt = 0, 0, 0, nil, nil
+                while true do
+                    task.wait(1)
+                    pcall(function()
+                        local player = game:GetService("Players").LocalPlayer
+                        local character = player and player.Character
+                        local root = character and character:FindFirstChild("HumanoidRootPart")
+                        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+                        if not (root and humanoid) or root.Anchored or humanoid.Sit or humanoid.SeatPart
+                            or humanoid.Health <= 0 or config.Farm.Enabled == false
+                            -- v3.0.70: Spotlight round's own mover carries me; this watcher stays out of it
+                            or state:get("farm.currentTask") == "spotlight"
+                            or string.find(tostring(state:get("player.interior") or ""), GameConstants.Event.SpotlightInteriorPrefix, 1, true) == 1 then
+                            stuckFor = 0
+                            return
+                        end
+                        local st = humanoid:GetState()
+                        local lying = st == Enum.HumanoidStateType.FallingDown or st == Enum.HumanoidStateType.Ragdoll
+                        local hanging = humanoid.FloorMaterial == Enum.Material.Air
+                            and math.abs(root.AssemblyLinearVelocity.Y) < 2 and st ~= Enum.HumanoidStateType.Climbing
+                            and st ~= Enum.HumanoidStateType.Swimming and st ~= Enum.HumanoidStateType.Physics
+                        local airborne = st == Enum.HumanoidStateType.Jumping or st == Enum.HumanoidStateType.Freefall
+                        if airborne then
+                            local floor = Interaction.floorUnder(root, character)
+                            airborne = floor ~= nil and root.Position.Y - floor < 12
+                        end
+                        local here = root.Position
+                        local still = lastPos ~= nil and (here - lastPos).Magnitude < 1.5
+                        lastPos = here
+                        wedgedFor = (airborne and still) and wedgedFor + 1 or 0
+                        stuckFor = (lying or hanging) and stuckFor + 1 or 0
+                        if stuckFor >= 3 and Util.now() - lastLift > 5 then
+                            stuckFor = 0
+                            local result = Interaction.settle(1)
+                            if result == "lifted" then
+                                lastLift = Util.now()
+                                logger:info("Game", "Character was stuck in the floor: put back on top of it")
+                            elseif lying or wedgedFor >= 3 then
+                                wedgedFor = 3
+                            end
+                        end
+                        if wedgedFor >= 3 and Util.now() - lastLift > 5 then
+                            wedgedFor = 0
+                            lastLift = Util.now()
+                            local moved = Interaction.unstick()
+                            if moved or Util.now() - (noSpotLogAt or -1e9) > 600 then
+                                if not moved then
+                                    noSpotLogAt = Util.now()
+                                end
+                                logger:info("Game", string.format("Character was wedged (%s, not moving): %s", tostring(st.Name),
+                                    moved and ("moved to a free spot " .. moved .. " studs away") or "no free spot found nearby"))
+                            end
+                        end
+                    end)
+                end
+            end))
             local gameData = GameData.new(logger)
             uiGameData = gameData
             telemetry:setGameData(gameData)
