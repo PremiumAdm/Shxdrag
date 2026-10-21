@@ -9727,6 +9727,12 @@ __moduleSources["Game/EventTasks"] = function(...)
     local E = GameConstants.Event
     local KEYS = GameConstants.DataKeys
     local TOYS = GameConstants.ToyCategory
+    local function phase(ctx, text, at)
+        if type(ctx) == "table" and type(ctx.phase) == "function" then
+            pcall(ctx.phase, text, at)
+        end
+    end
+    EventTasks.phase = phase
     local function count(map)
         local n = 0
         for _ in pairs(map) do
