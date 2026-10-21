@@ -4201,7 +4201,10 @@ __moduleSources["Game/GameConstants"] = function(...)
         TheCrypt = { door = "MainDoor", spawn = nil },
         HauntedHotel = { door = "MainDoor", spawn = nil },
     }
-    GameConstants.CharWrapperPlaces = { TheCrypt = true }
+    GameConstants.CharWrapperPlaces = { TheCrypt = true, Circus = true }
+    -- v3.0.23: the Circus and its rounds have no interior data; only char_wrapper.location names them, the round
+    -- with its own id ("CircusMinigameInterior::<guid>"): matched by its start
+    GameConstants.CharWrapperPrefixes = { "CircusMinigameInterior" }
     GameConstants.InteriorTalkForAilment = {
         sick = { furniture = "doctor", use = "UseBlock", choice = "Yes" },
     }
@@ -5155,13 +5158,25 @@ __moduleSources["Game/PlayerSync"] = function(...)
             local wrapper = gameData:get(KEYS.CharWrapper)
             local location = type(wrapper) == "table" and type(wrapper.location) == "table" and wrapper.location
             local id = location and location.destination_id
-            return (type(id) == "string" and GameConstants.CharWrapperPlaces[id]) and id or nil
+            if type(id) ~= "string" then
+                return nil
+            end
+            if GameConstants.CharWrapperPlaces[id] then
+                return id
+            end
+            -- v3.0.23: CircusMinigameInterior::<guid> is matched by prefix
+            for _, prefix in ipairs(GameConstants.CharWrapperPrefixes or {}) do
+                if string.sub(id, 1, #prefix) == prefix then
+                    return id
+                end
+            end
+            return nil
         end
         local function apply(key, value)
             if key == KEYS.CharWrapper then
                 local interior = gameData:get(KEYS.Interior)
                 local place = placeFromCharWrapper()
-                if place and state:get("player.interior") == nil and type(interior) == "table"
+                if place and state:get("player.interior") ~= place and type(interior) == "table"
                     and type(interior.interior_name) ~= "string" and interior.house_pos == nil then
                     state:set("player.interior", place, "DataChanged:" .. key)
                 end
