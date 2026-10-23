@@ -1,7 +1,7 @@
 -- Shxdrag hub | Adopt Me Farm (WindUI Edition) | settings: the window
 local UserConfig = {
     Farm = {
-        Enabled = true, -- false = everything paused ("Pause all" in the window); each feature has its own switch
+        Enabled = false, -- false = everything paused ("Pause all" in the window); each feature has its own switch
         BabyMode = false,
         AutoNeeds = {
             Enabled = false,
